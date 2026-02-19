@@ -1,0 +1,123 @@
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql" // or mysql
+}
+
+//////////////////////
+// ENUMS
+//////////////////////
+
+enum Role {
+  EMPLOYEE
+  HR
+  IT
+  ADMIN
+}
+
+enum TicketStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+}
+
+enum TicketPriority {
+  CRITICAL
+  HIGH
+  LOW
+}
+
+enum Department {
+  HR
+  IT
+}
+
+enum AssetStatus {
+  AVAILABLE
+  ASSIGNED
+  MAINTENANCE
+  RETIRED
+}
+
+//////////////////////
+// USERS (AUTH)
+//////////////////////
+
+model User {
+  id        String   @id @default(uuid())
+  name      String
+  email     String   @unique
+  password  String
+  role      Role
+  isActive  Boolean  @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // relations
+  ticketsCreated  Ticket[] @relation("TicketCreator")
+  ticketsAssigned Ticket[] @relation("TicketAssignee")
+  assetsAssigned  Asset[]  @relation("AssetOwner")
+
+  @@index([email])
+  @@index([role])
+}
+
+//////////////////////
+// TICKETS
+//////////////////////
+
+model Ticket {
+  id          String         @id @default(uuid())
+  title       String
+  summary     String
+  imageUrl    String?
+
+  status      TicketStatus   @default(OPEN)
+  priority    TicketPriority @default(LOW)
+  department  Department
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // 🔹 creator
+  createdById String
+  createdBy   User @relation("TicketCreator", fields: [createdById], references: [id])
+
+  // 🔹 assignee (HR or IT)
+  assignedToId String?
+  assignedTo   User? @relation("TicketAssignee", fields: [assignedToId], references: [id])
+
+  @@index([status])
+  @@index([priority])
+  @@index([department])
+  @@index([createdById])
+  @@index([assignedToId])
+}
+
+//////////////////////
+// ASSETS (MINIMAL)
+//////////////////////
+
+model Asset {
+  id            String      @id @default(uuid())
+  serialNumber  String      @unique // human readable like AST-001
+  assetName     String
+  assetType     String
+  assetStatus   AssetStatus @default(AVAILABLE)
+
+  assignedToId  String?
+  assignedTo    User? @relation("AssetOwner", fields: [assignedToId], references: [id])
+
+  assignedDate  DateTime?
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([assetStatus])
+  @@index([assetType])
+  @@index([assignedToId])
+}
