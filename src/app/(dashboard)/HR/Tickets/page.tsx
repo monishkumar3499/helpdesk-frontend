@@ -28,10 +28,10 @@ type Ticket = {
 const MOCK_TICKETS: Ticket[] = [
   { id: "1", title: "Leave Request", summary: "I need 3 days sick leave due to fever", category: "Leave Request", employeeName: "Aarav Kumar", employeeId: "EMP001", priority: "HIGH", status: "OPEN", department: "HR" },
   { id: "2", title: "Payroll Issue", summary: "My salary was incorrect this month", category: "Payroll Issue", employeeName: "Data Kumar", employeeId: "EMP002", priority: "CRITICAL", status: "IN_PROGRESS", department: "HR" },
-  { id: "3", title: "Onboarding", summary: "Need help with joining documents", category: "Onboarding", employeeName: "Rohit Sharma", employeeId: "EMP003", priority: "LOW", status: "RESOLVED", department: "HR", hrComment: "Documents have been processed successfully." },
+  { id: "3", title: "Onboarding", summary: "Need help with joining documents", category: "Onboarding", employeeName: "Rohit Sharma", employeeId: "EMP003", priority: "LOW", status: "RESOLVED", department: "HR"},
   { id: "4", title: "Leave Request", summary: "Requesting 5 days annual leave", category: "Leave Request", employeeName: "Sneha Pillai", employeeId: "EMP004", priority: "HIGH", status: "OPEN", department: "HR" },
   { id: "5", title: "Payroll Issue", summary: "PF deduction seems wrong", category: "Payroll Issue", employeeName: "Kiran Raj", employeeId: "EMP005", priority: "CRITICAL", status: "OPEN", department: "HR" },
-  { id: "6", title: "Onboarding", summary: "ID card not received yet", category: "Onboarding", employeeName: "Divya Krishnan", employeeId: "EMP006", priority: "LOW", status: "IN_PROGRESS", department: "HR", hrComment: "ID card is being processed." },
+  { id: "6", title: "Onboarding", summary: "ID card not received yet", category: "Onboarding", employeeName: "Divya Krishnan", employeeId: "EMP006", priority: "LOW", status: "IN_PROGRESS", department: "HR"},
 ]
 
 const priorityColor: Record<string, string> = {

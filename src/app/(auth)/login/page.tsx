@@ -7,7 +7,6 @@ import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 
-// Mock users — matches your Prisma schema roles
 const MOCK_USERS = [
   { email: "hr@company.com", password: "password123", role: "HR", name: "HR Manager" },
   { email: "admin@company.com", password: "password123", role: "ADMIN", name: "Admin User" },
