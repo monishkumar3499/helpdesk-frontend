@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Search, Mail, ShieldCheck } from "lucide-react"
 
-type Role = "EMPLOYEE" | "HR" | "IT" | "ADMIN"
+type Role = "EMPLOYEE" | "HR" | "IT_SUPPORT" | "IT_ADMIN"
 type Employee = {
   id: string; name: string; email: string
   role: Role; isActive: boolean; createdAt: string
@@ -18,17 +18,17 @@ type Employee = {
 const roleColors: Record<Role, string> = {
   EMPLOYEE: "bg-blue-100 text-blue-700 border-blue-200",
   HR: "bg-purple-100 text-purple-700 border-purple-200",
-  IT: "bg-emerald-100 text-emerald-700 border-emerald-200",
-  ADMIN: "bg-orange-100 text-orange-700 border-orange-200",
+  IT_SUPPORT: "bg-emerald-100 text-emerald-700 border-emerald-200",
+  IT_ADMIN: "bg-teal-100 text-teal-700 border-teal-200",
 }
 
 const MOCK: Employee[] = [
   { id: "1", name: "Aarav Sharma", email: "aarav@company.com", role: "EMPLOYEE", isActive: true, createdAt: "2024-01-15" },
   { id: "2", name: "Priya Nair", email: "priya@company.com", role: "HR", isActive: true, createdAt: "2023-11-20" },
-  { id: "3", name: "Rohan Mehta", email: "rohan@company.com", role: "IT", isActive: true, createdAt: "2024-02-10" },
+  { id: "3", name: "Rohan Mehta", email: "rohan@company.com", role: "IT_SUPPORT", isActive: true, createdAt: "2024-02-10" },
   { id: "4", name: "Sneha Pillai", email: "sneha@company.com", role: "EMPLOYEE", isActive: false, createdAt: "2023-09-05" },
   { id: "5", name: "Kiran Raj", email: "kiran@company.com", role: "EMPLOYEE", isActive: true, createdAt: "2024-03-01" },
-  { id: "6", name: "Divya Krishnan", email: "divya@company.com", role: "ADMIN", isActive: true, createdAt: "2023-07-18" },
+  { id: "6", name: "Divya Krishnan", email: "divya@company.com", role: "IT_ADMIN", isActive: true, createdAt: "2023-07-18" },
 ]
 
 export default function EmployeesPage() {
@@ -85,8 +85,8 @@ export default function EmployeesPage() {
             <SelectItem value="All">All Roles</SelectItem>
             <SelectItem value="EMPLOYEE">Employee</SelectItem>
             <SelectItem value="HR">HR</SelectItem>
-            <SelectItem value="IT">IT</SelectItem>
-            <SelectItem value="ADMIN">Admin</SelectItem>
+            <SelectItem value="IT_SUPPORT">IT Support</SelectItem>
+            <SelectItem value="IT_ADMIN">IT Admin</SelectItem>
           </SelectContent>
         </Select>
       </div>

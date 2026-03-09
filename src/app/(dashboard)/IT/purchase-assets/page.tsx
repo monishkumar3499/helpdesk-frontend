@@ -4,7 +4,8 @@ import { useState } from "react"
 import { apiFetch } from "@/lib/api"
 import { Card, CardContent } from "@/components/ui/card"
 import { PurchaseAssetForm } from "../_components/purchase-asset-form"
-import { getCurrentUser } from "../_lib/it-shared"
+import { getCurrentUser, isITAdmin } from "../_lib/it-shared"
+import { Boxes, Sparkles } from "lucide-react"
 
 export default function PurchaseAssetsPage() {
   const [assetName, setAssetName] = useState("")
@@ -12,7 +13,7 @@ export default function PurchaseAssetsPage() {
   const [quantity, setQuantity] = useState(1)
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState("")
-  const isAdmin = (getCurrentUser()?.role || "IT") === "ADMIN"
+  const isAdmin = isITAdmin(getCurrentUser()?.role)
 
   async function handlePurchase() {
     setLoading(true)
@@ -22,7 +23,7 @@ export default function PurchaseAssetsPage() {
       const calls = Array.from({ length: quantity }).map((_, index) => apiFetch("/assets", {
         method: "POST",
         body: JSON.stringify({ serialNumber: `AST-${assetType.slice(0, 2)}-${String(now + index).slice(-6)}`, assetName, assetType }),
-      }))
+      }, { forceBackend: true }))
       await Promise.all(calls)
       setMessage(`Purchased and added ${quantity} ${assetType.toLowerCase()} assets.`)
       setAssetName("")
@@ -39,8 +40,22 @@ export default function PurchaseAssetsPage() {
   }
 
   return (
-    <div className="space-y-6 max-w-xl">
-      <div><h2 className="text-2xl font-bold text-slate-800">Purchase Assets</h2><p className="text-sm text-slate-500 mt-1">Add new asset stock when threshold alerts are triggered</p></div>
+    <div className="it-page-stack max-w-4xl">
+      <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-linear-to-r from-slate-900 via-slate-800 to-cyan-900 p-6 text-white shadow-lg">
+        <div className="absolute -right-10 -top-12 h-36 w-36 rounded-full bg-cyan-400/20 blur-2xl" />
+        <div className="relative flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <div>
+            <h2 className="it-hero-title">Purchase Assets</h2>
+            <p className="it-hero-subtitle text-slate-200">Add new asset stock when threshold alerts are triggered.</p>
+          </div>
+          <div className="flex items-center gap-2 rounded-xl border border-white/20 bg-white/10 px-3 py-2 text-xs">
+            <Boxes className="h-4 w-4 text-cyan-200" />
+            Procurement Control
+            <Sparkles className="h-4 w-4 text-sky-200" />
+          </div>
+        </div>
+      </div>
+
       <PurchaseAssetForm
         assetName={assetName}
         assetType={assetType}

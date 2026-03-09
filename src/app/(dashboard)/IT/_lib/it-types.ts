@@ -1,12 +1,22 @@
 export type TicketStatus = "OPEN" | "IN_PROGRESS" | "RESOLVED"
 export type TicketPriority = "CRITICAL" | "HIGH" | "LOW"
 export type TicketCategory = "SOFTWARE" | "HARDWARE" | "NETWORK" | "ASSET_REQUEST" | "GENERAL"
+export type TicketIssueType = "GENERAL" | "ASSET_REQUEST" | "ASSET_PROBLEM"
+
+export type TicketAssetIssue = {
+  assetId?: string | null
+  assetCategory?: string | null
+  assetClassification?: "NETWORK" | "SOFTWARE" | "HARDWARE" | null
+  requestedAssetName?: string | null
+}
 
 export type ITTicket = {
   id: string
   title: string
   summary: string
   department: string
+  issueType?: TicketIssueType
+  assetIssue?: TicketAssetIssue | null
   status: TicketStatus
   priority: TicketPriority
   createdAt: string

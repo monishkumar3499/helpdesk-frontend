@@ -14,11 +14,17 @@ import {
 } from "@/components/ui/dropdown-menu"
 
 const MOCK_USERS = [
-  { email: "hr@company.com", password: "password123", role: "HR", name: "HR Manager" },
-  { email: "admin@company.com", password: "password123", role: "ADMIN", name: "Admin User" },
-  { email: "it@company.com", password: "password123", role: "IT", name: "IT Operations" },
-  { email: "employee@company.com", password: "password123", role: "EMPLOYEE", name: "Test Employee" },
+  { id: "u-hr-1", email: "hr@company.com", password: "password123", role: "HR", name: "HR Manager" },
+  { id: "it-admin-1", email: "it.admin@company.com", password: "password123", role: "IT_ADMIN", name: "IT Admin Lead" },
+  { id: "it-2", email: "ravi.it@company.com", password: "password123", role: "IT_SUPPORT", name: "Ravi IT" },
+  { id: "emp-1", email: "employee@company.com", password: "password123", role: "EMPLOYEE", name: "Test Employee" },
 ]
+
+function normalizeRole(role: string) {
+  if (role === "IT_ADMIN") return "IT_ADMIN"
+  if (role === "IT_SUPPORT") return "IT_SUPPORT"
+  return role
+}
 
 export default function HomePage() {
   const router = useRouter()
@@ -35,8 +41,7 @@ export default function HomePage() {
 
     const parsed = JSON.parse(user)
     if (parsed.role === "HR") router.push("/HR")
-    else if (parsed.role === "IT") router.push("/IT")
-    else if (parsed.role === "ADMIN") router.push("/HR")
+    else if (["IT_SUPPORT", "IT_ADMIN"].includes(parsed.role)) router.push("/IT")
     else router.push("/employee")
   }, [router])
 
@@ -59,15 +64,16 @@ export default function HomePage() {
         "user",
         JSON.stringify({
           email: user.email,
+          id: user.id,
           name: user.name,
-          role: user.role,
+          role: normalizeRole(user.role),
           loginTime: new Date().toISOString(),
         }),
       )
 
-      if (user.role === "HR" || user.role === "ADMIN") {
+      if (user.role === "HR") {
         router.push("/HR")
-      } else if (user.role === "IT") {
+      } else if (["IT_ADMIN", "IT_SUPPORT"].includes(user.role)) {
         router.push("/IT")
       } else {
         router.push("/employee")
@@ -95,7 +101,7 @@ export default function HomePage() {
                 <Button className="w-full">Select Role</Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent onClick={() => setShowText(true)}>
-                {["HR", "ADMIN", "IT", "EMPLOYEE"].map((role) => (
+                {["HR", "IT_ADMIN", "IT_SUPPORT", "EMPLOYEE"].map((role) => (
                   <DropdownMenuCheckboxItem
                     key={role}
                     checked={selectedRole === role}
@@ -150,8 +156,8 @@ export default function HomePage() {
           <div className="bg-blue-50 rounded-lg p-3 border border-blue-100">
             <p className="text-xs text-blue-700 font-medium mb-1">Credentials for testing:</p>
             <p className="text-xs text-blue-600">HR: hr@company.com | password123</p>
-            <p className="text-xs text-blue-600">Admin: admin@company.com | password123</p>
-            <p className="text-xs text-blue-600">IT: it@company.com | password123</p>
+            <p className="text-xs text-blue-600">IT Admin: it.admin@company.com | password123</p>
+            <p className="text-xs text-blue-600">IT Support: ravi.it@company.com | password123</p>
             <p className="text-xs text-blue-600">Employee: employee@company.com | password123</p>
           </div>
         </CardContent>

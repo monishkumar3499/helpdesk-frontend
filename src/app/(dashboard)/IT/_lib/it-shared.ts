@@ -1,6 +1,13 @@
-import { type ITAsset, type ITTicket, type TicketCategory, type TicketPriority } from "./it-types"
+import { type ITAsset, type ITTicket, type TicketCategory, type TicketPriority, type TicketIssueType, type TicketAssetIssue } from "./it-types"
 
-type RawTicket = Partial<ITTicket> & { id?: string; title?: string; department?: string; createdAt?: string }
+type RawTicket = Partial<ITTicket> & {
+  id?: string
+  title?: string
+  department?: string
+  createdAt?: string
+  issueType?: TicketIssueType
+  assetIssue?: TicketAssetIssue | null
+}
 type RawAsset = Partial<ITAsset> & { id?: string; serialNumber?: string; assetName?: string; createdAt?: string }
 
 export const PRIORITY_DEADLINE_DAYS: Record<TicketPriority, number> = { CRITICAL: 1, HIGH: 3, LOW: 7 }
@@ -13,6 +20,8 @@ export function normalizeTicket(raw: unknown): ITTicket {
     title: ticket.title || "Untitled Ticket",
     summary: ticket.summary || "",
     department: ticket.department || "IT",
+    issueType: ticket.issueType || "GENERAL",
+    assetIssue: ticket.assetIssue || null,
     status: ticket.status || "OPEN",
     priority: ticket.priority || "LOW",
     createdAt: ticket.createdAt || new Date().toISOString(),
@@ -38,6 +47,15 @@ export function normalizeAsset(raw: unknown): ITAsset {
 }
 
 export function inferTicketCategory(ticket: Pick<ITTicket, "title" | "summary">): TicketCategory {
+  if ((ticket as ITTicket).issueType === "ASSET_REQUEST") return "ASSET_REQUEST"
+  if ((ticket as ITTicket).issueType === "ASSET_PROBLEM") {
+    const classification = (ticket as ITTicket).assetIssue?.assetClassification
+    if (classification === "NETWORK") return "NETWORK"
+    if (classification === "SOFTWARE") return "SOFTWARE"
+    if (classification === "HARDWARE") return "HARDWARE"
+    return "ASSET_REQUEST"
+  }
+
   const text = `${ticket.title} ${ticket.summary}`.toLowerCase()
   if (text.includes("asset") || text.includes("request") || text.includes("laptop") || text.includes("monitor")) return "ASSET_REQUEST"
   if (text.includes("network") || text.includes("wifi") || text.includes("internet") || text.includes("vpn")) return "NETWORK"
@@ -63,5 +81,5 @@ export function getMemberLoad(tickets: ITTicket[], memberId: string) {
   return tickets.filter((ticket) => ticket.assignedToId === memberId && (ticket.status === "OPEN" || ticket.status === "IN_PROGRESS")).length
 }
 
-export type { ITAsset, ITTicket, TicketCategory, TicketPriority, ITUser } from "./it-types"
-export { getCurrentUser } from "./it-session"
+export type { ITAsset, ITTicket, TicketCategory, TicketPriority, ITUser, TicketIssueType, TicketAssetIssue } from "./it-types"
+export { getCurrentUser, isAnyITRole, isITAdmin, isITSupport, normalizeITRole, type ITAccessRole } from "./it-session"

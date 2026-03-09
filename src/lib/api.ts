@@ -5,9 +5,10 @@ const MOCK_DB_KEY = "helpdesk_mock_db_v1";
 type TicketStatus = "OPEN" | "IN_PROGRESS" | "RESOLVED" | "REJECTED";
 type TicketPriority = "CRITICAL" | "HIGH" | "LOW";
 type Department = "HR" | "IT";
+type TicketIssueType = "GENERAL" | "ASSET_REQUEST" | "ASSET_PROBLEM";
 type AssetType = "SOFTWARE" | "HARDWARE" | "NETWORK";
 type AssetStatus = "AVAILABLE" | "ASSIGNED" | "MAINTENANCE" | "RETIRED";
-type Role = "EMPLOYEE" | "HR" | "IT" | "ADMIN";
+type Role = "EMPLOYEE" | "HR" | "IT_SUPPORT" | "IT_ADMIN";
 
 type MockUser = {
   id: string;
@@ -23,6 +24,13 @@ type MockTicket = {
   title: string;
   summary: string;
   description?: string;
+  issueType?: TicketIssueType;
+  assetIssue?: {
+    assetId?: string | null;
+    assetCategory?: string | null;
+    assetClassification?: AssetType | null;
+    requestedAssetName?: string | null;
+  } | null;
   status: TicketStatus;
   priority: TicketPriority;
   department: Department;
@@ -49,6 +57,8 @@ type MockDb = {
   assets: MockAsset[];
 };
 
+type LegacyRole = Role | "ADMIN" | "IT";
+
 let cache: MockDb | null = null;
 
 function nowIso() {
@@ -62,12 +72,12 @@ function hoursAgoIso(hours: number) {
 function createSeedData(): MockDb {
   const users: MockUser[] = [
     { id: "u-hr-1", name: "Priya Nair", email: "priya.nair@company.com", role: "HR", isActive: true, createdAt: "2024-01-05T09:00:00.000Z" },
-    { id: "u-admin-1", name: "Divya Krishnan", email: "divya.krishnan@company.com", role: "ADMIN", isActive: true, createdAt: "2023-11-10T09:00:00.000Z" },
-    { id: "it-1", name: "Asha IT", email: "asha.it@company.com", role: "IT", isActive: true, createdAt: "2024-02-10T09:00:00.000Z" },
-    { id: "it-2", name: "Ravi IT", email: "ravi.it@company.com", role: "IT", isActive: true, createdAt: "2024-02-15T09:00:00.000Z" },
-    { id: "it-3", name: "Meena IT", email: "meena.it@company.com", role: "IT", isActive: true, createdAt: "2024-03-03T09:00:00.000Z" },
-    { id: "it-4", name: "Sanjay IT", email: "sanjay.it@company.com", role: "IT", isActive: true, createdAt: "2024-03-12T09:00:00.000Z" },
-    { id: "it-5", name: "Kiran IT", email: "kiran.it@company.com", role: "IT", isActive: true, createdAt: "2024-04-01T09:00:00.000Z" },
+    { id: "it-admin-1", name: "Nikhil Ops", email: "it.admin@company.com", role: "IT_ADMIN", isActive: true, createdAt: "2024-01-08T09:00:00.000Z" },
+    { id: "it-1", name: "Asha IT", email: "asha.it@company.com", role: "IT_SUPPORT", isActive: true, createdAt: "2024-02-10T09:00:00.000Z" },
+    { id: "it-2", name: "Ravi IT", email: "ravi.it@company.com", role: "IT_SUPPORT", isActive: true, createdAt: "2024-02-15T09:00:00.000Z" },
+    { id: "it-3", name: "Meena IT", email: "meena.it@company.com", role: "IT_SUPPORT", isActive: true, createdAt: "2024-03-03T09:00:00.000Z" },
+    { id: "it-4", name: "Sanjay IT", email: "sanjay.it@company.com", role: "IT_SUPPORT", isActive: true, createdAt: "2024-03-12T09:00:00.000Z" },
+    { id: "it-5", name: "Kiran IT", email: "kiran.it@company.com", role: "IT_SUPPORT", isActive: true, createdAt: "2024-04-01T09:00:00.000Z" },
     { id: "emp-1", name: "Aarav Sharma", email: "aarav.sharma@company.com", role: "EMPLOYEE", isActive: true, createdAt: "2024-01-17T09:00:00.000Z" },
     { id: "emp-2", name: "Sneha Pillai", email: "sneha.pillai@company.com", role: "EMPLOYEE", isActive: true, createdAt: "2024-02-09T09:00:00.000Z" },
     { id: "emp-3", name: "Rohan Mehta", email: "rohan.mehta@company.com", role: "EMPLOYEE", isActive: false, createdAt: "2023-12-19T09:00:00.000Z" },
@@ -86,6 +96,110 @@ function createSeedData(): MockDb {
     { id: "it-104", title: "Printer jam on 3rd floor", summary: "Paper jam and error E23 visible", status: "IN_PROGRESS", priority: "HIGH", department: "IT", createdAt: hoursAgoIso(7), createdById: "emp-3", assignedToId: "it-4" },
     { id: "it-105", title: "Wi-Fi signal weak", summary: "Network drops frequently in conference room", status: "RESOLVED", priority: "LOW", department: "IT", createdAt: hoursAgoIso(80), createdById: "emp-2", assignedToId: "it-5" },
     { id: "it-106", title: "New monitor request", summary: "Need dual-monitor setup for analytics work", status: "OPEN", priority: "LOW", department: "IT", createdAt: hoursAgoIso(18), createdById: "emp-1", assignedToId: "it-1" },
+    {
+      id: "it-107",
+      title: "Asset request: 27 inch monitor",
+      summary: "Need one monitor for reporting desk",
+      issueType: "ASSET_REQUEST",
+      assetIssue: { assetCategory: "ASSET_REQUEST", assetClassification: "HARDWARE", requestedAssetName: "27 inch Monitor", assetId: null },
+      status: "OPEN",
+      priority: "LOW",
+      department: "IT",
+      createdAt: hoursAgoIso(12),
+      createdById: "emp-4",
+      assignedToId: "it-2",
+    },
+    {
+      id: "it-108",
+      title: "Asset problem: Cisco AP unstable",
+      summary: "The access point restarts every hour",
+      issueType: "ASSET_PROBLEM",
+      assetIssue: { assetCategory: "ASSET_PROBLEM", assetClassification: "NETWORK", assetId: "asset-6" },
+      status: "IN_PROGRESS",
+      priority: "HIGH",
+      department: "IT",
+      createdAt: hoursAgoIso(9),
+      createdById: "emp-2",
+      assignedToId: "it-3",
+    },
+    {
+      id: "it-109",
+      title: "Asset request: docking station for hybrid setup",
+      summary: "Need a USB-C docking station with dual display output for WFH days",
+      issueType: "ASSET_REQUEST",
+      assetIssue: { assetCategory: "ASSET_REQUEST", assetClassification: "HARDWARE", requestedAssetName: "USB-C Docking Station", assetId: null },
+      status: "OPEN",
+      priority: "HIGH",
+      department: "IT",
+      createdAt: hoursAgoIso(6),
+      createdById: "emp-1",
+      assignedToId: "it-4",
+    },
+    {
+      id: "it-110",
+      title: "Asset request: Adobe Acrobat Pro license",
+      summary: "Requesting license for contract review and PDF redaction",
+      issueType: "ASSET_REQUEST",
+      assetIssue: { assetCategory: "ASSET_REQUEST", assetClassification: "SOFTWARE", requestedAssetName: "Adobe Acrobat Pro", assetId: null },
+      status: "IN_PROGRESS",
+      priority: "LOW",
+      department: "IT",
+      createdAt: hoursAgoIso(20),
+      createdById: "emp-4",
+      assignedToId: "it-1",
+    },
+    {
+      id: "it-111",
+      title: "Asset problem: ThinkPad battery draining fast",
+      summary: "Laptop battery drops from 100% to 40% in under an hour",
+      issueType: "ASSET_PROBLEM",
+      assetIssue: { assetCategory: "ASSET_PROBLEM", assetClassification: "HARDWARE", assetId: "asset-3" },
+      status: "OPEN",
+      priority: "CRITICAL",
+      department: "IT",
+      createdAt: hoursAgoIso(5),
+      createdById: "emp-2",
+      assignedToId: "it-2",
+    },
+    {
+      id: "it-112",
+      title: "Asset problem: M365 activation keeps failing",
+      summary: "Office apps show activation required even after sign in",
+      issueType: "ASSET_PROBLEM",
+      assetIssue: { assetCategory: "ASSET_PROBLEM", assetClassification: "SOFTWARE", assetId: "asset-4" },
+      status: "IN_PROGRESS",
+      priority: "HIGH",
+      department: "IT",
+      createdAt: hoursAgoIso(16),
+      createdById: "emp-1",
+      assignedToId: "it-5",
+    },
+    {
+      id: "it-113",
+      title: "Asset request: replacement ergonomic keyboard",
+      summary: "Current keyboard has multiple non-working keys; requesting replacement",
+      issueType: "ASSET_REQUEST",
+      assetIssue: { assetCategory: "ASSET_REQUEST", assetClassification: "HARDWARE", requestedAssetName: "Ergonomic Keyboard", assetId: null },
+      status: "RESOLVED",
+      priority: "LOW",
+      department: "IT",
+      createdAt: hoursAgoIso(52),
+      createdById: "emp-3",
+      assignedToId: "it-3",
+    },
+    {
+      id: "it-114",
+      title: "Asset request: 27 inch monitor",
+      summary: "Need one monitor for reporting desk",
+      issueType: "ASSET_REQUEST",
+      assetIssue: { assetCategory: "ASSET_REQUEST", assetClassification: "HARDWARE", requestedAssetName: "27 inch Monitor", assetId: null },
+      status: "OPEN",
+      priority: "LOW",
+      department: "IT",
+      createdAt: hoursAgoIso(12),
+      createdById: "emp-4",
+      assignedToId: "it-2",
+    },
   ];
 
   const assets: MockAsset[] = [
@@ -107,6 +221,43 @@ function clone<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
 }
 
+function normalizeLegacyRole(role: LegacyRole): Role {
+  if (role === "IT" || role === "IT_SUPPORT") return "IT_SUPPORT";
+  if (role === "ADMIN" || role === "IT_ADMIN") return "IT_ADMIN";
+  return role;
+}
+
+function migrateDb(db: MockDb): MockDb {
+  const seed = createSeedData();
+  const mergedUsers = [...db.users.map((user) => ({
+    ...user,
+    role: normalizeLegacyRole(user.role as LegacyRole),
+  }))];
+  const existingUserIds = new Set(mergedUsers.map((user) => user.id));
+  seed.users.forEach((user) => {
+    if (!existingUserIds.has(user.id)) mergedUsers.push(user);
+  });
+
+  const mergedTickets = [...db.tickets];
+  const existingTicketIds = new Set(mergedTickets.map((ticket) => ticket.id));
+  seed.tickets.forEach((ticket) => {
+    if (!existingTicketIds.has(ticket.id)) mergedTickets.push(ticket);
+  });
+
+  const mergedAssets = [...db.assets];
+  const existingAssetIds = new Set(mergedAssets.map((asset) => asset.id));
+  seed.assets.forEach((asset) => {
+    if (!existingAssetIds.has(asset.id)) mergedAssets.push(asset);
+  });
+
+  return {
+    ...db,
+    users: mergedUsers,
+    tickets: mergedTickets,
+    assets: mergedAssets,
+  };
+}
+
 function loadDb(): MockDb {
   if (cache) return cache;
   if (typeof window === "undefined") {
@@ -122,7 +273,8 @@ function loadDb(): MockDb {
   }
 
   try {
-    cache = JSON.parse(raw) as MockDb;
+    cache = migrateDb(JSON.parse(raw) as MockDb);
+    window.localStorage.setItem(MOCK_DB_KEY, JSON.stringify(cache));
   } catch {
     cache = createSeedData();
     window.localStorage.setItem(MOCK_DB_KEY, JSON.stringify(cache));
@@ -180,10 +332,33 @@ async function mockFetch(endpoint: string, options?: RequestInit) {
 
   if (method === "GET" && pathname === "/tickets") {
     const department = url.searchParams.get("department");
+    const createdById = url.searchParams.get("createdById");
     const filtered = department
       ? db.tickets.filter((t) => t.department === department)
       : db.tickets;
-    return delay(clone(filtered.map((ticket) => enrichTicket(ticket, db))));
+    const scoped = createdById ? filtered.filter((t) => t.createdById === createdById) : filtered;
+    return delay(clone(scoped.map((ticket) => enrichTicket(ticket, db))));
+  }
+
+  if (method === "POST" && pathname === "/tickets") {
+    const body = parseJsonBody(options);
+    const nextTicket: MockTicket = {
+      id: `it-${Math.floor(Date.now() / 1000).toString().slice(-6)}`,
+      title: (body.title as string | undefined) || "Untitled Ticket",
+      summary: (body.summary as string | undefined) || "",
+      description: body.description as string | undefined,
+      issueType: (body.issueType as TicketIssueType | undefined) || "GENERAL",
+      assetIssue: (body.assetIssue as MockTicket["assetIssue"] | undefined) || null,
+      status: "OPEN",
+      priority: (body.priority as TicketPriority | undefined) || "LOW",
+      department: (body.department as Department | undefined) || "IT",
+      createdAt: nowIso(),
+      createdById: body.createdById as string | undefined,
+      assignedToId: (body.assignedToId as string | null | undefined) ?? null,
+    };
+    const next = [nextTicket, ...db.tickets];
+    persistDb({ ...db, tickets: next });
+    return delay(clone(enrichTicket(nextTicket, { ...db, tickets: next })));
   }
 
   if (method === "PATCH" && pathname.match(/^\/tickets\/[^/]+\/status$/)) {
@@ -206,6 +381,7 @@ async function mockFetch(endpoint: string, options?: RequestInit) {
             ...ticket,
             status: (body.status as TicketStatus | undefined) || ticket.status,
             assignedToId: (body.assignedToId as string | null | undefined) ?? ticket.assignedToId,
+            assetIssue: (body.assetIssue as MockTicket["assetIssue"] | undefined) ?? ticket.assetIssue,
           }
         : ticket,
     );
@@ -213,9 +389,30 @@ async function mockFetch(endpoint: string, options?: RequestInit) {
     return delay(clone(enrichTicket(next.find((t) => t.id === id) || db.tickets[0], { ...db, tickets: next })));
   }
 
+  if (method === "PATCH" && pathname.match(/^\/assets\/[^/]+$/)) {
+    const id = pathname.split("/")[2];
+    const body = parseJsonBody(options);
+    const next = db.assets.map((asset) =>
+      asset.id === id
+        ? {
+            ...asset,
+            assetStatus: (body.assetStatus as AssetStatus | undefined) || asset.assetStatus,
+            assignedToId: (body.assignedToId as string | null | undefined) ?? asset.assignedToId,
+          }
+        : asset,
+    );
+    persistDb({ ...db, assets: next });
+    return delay(clone(enrichAsset(next.find((a) => a.id === id) || db.assets[0], { ...db, assets: next })));
+  }
+
   if (method === "GET" && pathname === "/users") {
     const role = url.searchParams.get("role");
-    const filtered = role ? db.users.filter((u) => u.role === role) : db.users;
+    const filtered = role
+      ? db.users.filter((u) => {
+          if (role === "IT") return u.role === "IT_SUPPORT";
+          return u.role === role;
+        })
+      : db.users;
     return delay(clone(filtered));
   }
 
@@ -241,8 +438,17 @@ async function mockFetch(endpoint: string, options?: RequestInit) {
   throw new Error(`Mock endpoint not implemented: ${method} ${pathname}`);
 }
 
-export async function apiFetch(endpoint: string, options?: RequestInit) {
-  if (USE_MOCK_API) {
+type ApiFetchConfig = {
+  forceBackend?: boolean;
+};
+
+export async function apiFetch(
+  endpoint: string,
+  options?: RequestInit,
+  config?: ApiFetchConfig,
+) {
+  const shouldUseMock = USE_MOCK_API && !config?.forceBackend;
+  if (shouldUseMock) {
     return mockFetch(endpoint, options);
   }
 

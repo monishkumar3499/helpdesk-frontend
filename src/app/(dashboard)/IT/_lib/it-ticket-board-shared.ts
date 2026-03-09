@@ -18,11 +18,11 @@ export const REJECTION_MAP_KEY = "it_ticket_rejections"
 export const ADMIN_ALERTS_KEY = "it_admin_alerts"
 
 export const MOCK_IT_TEAM: ITUser[] = [
-  { id: "it-1", name: "Asha IT", email: "asha.it@company.com", role: "IT", isActive: true },
-  { id: "it-2", name: "Ravi IT", email: "ravi.it@company.com", role: "IT", isActive: true },
-  { id: "it-3", name: "Meena IT", email: "meena.it@company.com", role: "IT", isActive: true },
-  { id: "it-4", name: "Sanjay IT", email: "sanjay.it@company.com", role: "IT", isActive: true },
-  { id: "it-5", name: "Kiran IT", email: "kiran.it@company.com", role: "IT", isActive: true },
+  { id: "it-1", name: "Asha IT", email: "asha.it@company.com", role: "IT_SUPPORT", isActive: true },
+  { id: "it-2", name: "Ravi IT", email: "ravi.it@company.com", role: "IT_SUPPORT", isActive: true },
+  { id: "it-3", name: "Meena IT", email: "meena.it@company.com", role: "IT_SUPPORT", isActive: true },
+  { id: "it-4", name: "Sanjay IT", email: "sanjay.it@company.com", role: "IT_SUPPORT", isActive: true },
+  { id: "it-5", name: "Kiran IT", email: "kiran.it@company.com", role: "IT_SUPPORT", isActive: true },
 ]
 
 export const TITLE_MAP: Record<BoardView, string> = {

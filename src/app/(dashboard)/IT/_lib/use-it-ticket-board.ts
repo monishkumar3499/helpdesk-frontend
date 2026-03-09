@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react"
 import { apiFetch } from "@/lib/api"
-import { getCurrentUser, inferTicketCategory, isOverdue, normalizeTicket, type ITTicket, type ITUser } from "./it-shared"
-import { ADMIN_ALERTS_KEY, BoardView, MOCK_IT_TEAM, REJECTION_MAP_KEY } from "./it-ticket-board-shared"
+import { getCurrentUser, inferTicketCategory, isITAdmin, isOverdue, normalizeTicket, normalizeITRole, type ITTicket, type ITUser } from "./it-shared"
+import { ADMIN_ALERTS_KEY, BoardView, REJECTION_MAP_KEY } from "./it-ticket-board-shared"
 
 export function useITTicketBoard(view: BoardView) {
   const [tickets, setTickets] = useState<ITTicket[]>([])
@@ -14,26 +14,30 @@ export function useITTicketBoard(view: BoardView) {
   const [assignTo, setAssignTo] = useState<Record<string, string>>({})
   const [banner, setBanner] = useState("")
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
-  const [currentRole] = useState<string>(() => getCurrentUser()?.role || "IT")
+  const [currentRole] = useState<string>(() => normalizeITRole(getCurrentUser()?.role))
 
   useEffect(() => {
     const sessionUser = getCurrentUser()
-    Promise.all([apiFetch("/tickets?department=IT"), apiFetch("/users?role=IT")])
+    Promise.all([
+      apiFetch("/tickets?department=IT", undefined, { forceBackend: true }),
+      apiFetch("/users?role=IT_SUPPORT", undefined, { forceBackend: true }),
+    ])
       .then(([ticketData, userData]) => {
         const activeTeam = (userData as ITUser[]).filter((member) => member.isActive !== false)
         setTickets(ticketData.map(normalizeTicket))
-        setTeam(activeTeam.length > 0 ? activeTeam : MOCK_IT_TEAM)
+        setTeam(activeTeam)
         setCurrentUserId(activeTeam.find((m) => m.email === sessionUser?.email)?.id || null)
         setUsingMock(false)
       })
       .catch(() => {
-        setTeam(MOCK_IT_TEAM)
+        setTickets([])
+        setTeam([])
         setUsingMock(true)
       })
       .finally(() => setLoading(false))
   }, [])
 
-  const isAdmin = currentRole === "ADMIN"
+  const isAdmin = isITAdmin(currentRole)
   const categories = useMemo<string[]>(
     () => ["ALL", ...Array.from(new Set(tickets.map((ticket) => inferTicketCategory(ticket))))],
     [tickets],

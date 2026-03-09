@@ -9,7 +9,7 @@ type Props = {
   ticket: ITTicket
   team: ITUser[]
   isAdmin: boolean
-  view: "all" | "assigned" | "accepted" | "resolved"
+  onOpenDetails?: () => void
   selectedAssignee?: string
   onAssigneeChange: (value: string) => void
   onAccept: () => void
@@ -17,12 +17,12 @@ type Props = {
   onManualAssign: () => void
 }
 
-export function ITTicketCard({ ticket, team, isAdmin, view, selectedAssignee, onAssigneeChange, onAccept, onReject, onManualAssign }: Props) {
+export function ITTicketCard({ ticket, team, isAdmin, onOpenDetails, selectedAssignee, onAssigneeChange, onAccept, onReject, onManualAssign }: Props) {
   const category = inferTicketCategory(ticket)
   const assignedName = ticket.assignedTo?.name || team.find((m) => m.id === ticket.assignedToId)?.name || "Unassigned"
 
   return (
-    <Card className="border border-slate-200">
+    <Card className="border border-slate-200 cursor-pointer hover:shadow-md transition-all" onClick={onOpenDetails}>
       <CardContent className="p-4">
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
           <div className="space-y-2 flex-1">
@@ -36,9 +36,9 @@ export function ITTicketCard({ ticket, team, isAdmin, view, selectedAssignee, on
             <p className="text-sm text-slate-600 line-clamp-2">{ticket.summary}</p>
             <div className="text-xs text-slate-500 flex flex-wrap gap-3"><span>ID: {ticket.id}</span><span>Raised by: {ticket.createdBy?.name || "Unknown"}</span><span>Assigned: {assignedName}</span><span>Deadline: {getDeadlineLabel(ticket.priority)}</span></div>
           </div>
-          <div className="flex items-center gap-2 flex-wrap lg:justify-end">
-            {!isAdmin && view === "assigned" && ticket.status === "OPEN" && <><Button className="bg-amber-600 hover:bg-amber-700" onClick={onAccept}>Accept</Button><Button variant="outline" className="text-red-600 border-red-200" onClick={onReject}>Reject</Button></>}
-            {isAdmin && ticket.status === "OPEN" && <><Select value={selectedAssignee || ""} onValueChange={onAssigneeChange}><SelectTrigger className="w-[180px]"><SelectValue placeholder="Assign to member" /></SelectTrigger><SelectContent>{team.map((member) => <SelectItem key={member.id} value={member.id}>{member.name}</SelectItem>)}</SelectContent></Select><Button onClick={onManualAssign} disabled={!selectedAssignee}>Assign</Button></>}
+          <div className="flex items-center gap-2 flex-wrap lg:justify-end" onClick={(event) => event.stopPropagation()}>
+            {!isAdmin && ticket.status === "OPEN" && <><Button className="bg-amber-600 hover:bg-amber-700" onClick={onAccept}>Accept</Button><Button variant="outline" className="text-red-600 border-red-200" onClick={onReject}>Reject</Button></>}
+            {isAdmin && ticket.status === "OPEN" && <><Select value={selectedAssignee || ""} onValueChange={onAssigneeChange}><SelectTrigger className="w-45"><SelectValue placeholder="Assign to member" /></SelectTrigger><SelectContent>{team.map((member) => <SelectItem key={member.id} value={member.id}>{member.name}</SelectItem>)}</SelectContent></Select><Button onClick={onManualAssign} disabled={!selectedAssignee}>Assign</Button></>}
           </div>
         </div>
       </CardContent>

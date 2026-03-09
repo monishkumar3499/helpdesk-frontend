@@ -8,6 +8,8 @@ import {
   isOverdue,
   normalizeAsset,
   normalizeTicket,
+  isITAdmin,
+  normalizeITRole,
   type ITAsset,
   type ITTicket,
   type ITUser,
@@ -16,6 +18,7 @@ import {
 const ADMIN_ALERTS_KEY = "it_admin_alerts"
 
 export function useITDashboard() {
+  const currentUser = getCurrentUser()
   const [tickets, setTickets] = useState<ITTicket[]>([])
   const [assets, setAssets] = useState<ITAsset[]>([])
   const [team, setTeam] = useState<ITUser[]>([])
@@ -25,19 +28,37 @@ export function useITDashboard() {
     if (typeof window === "undefined") return []
     try { return JSON.parse(localStorage.getItem(ADMIN_ALERTS_KEY) || "[]") as string[] } catch { return [] }
   })
-  const [role] = useState(() => getCurrentUser()?.role || "IT")
+  const [role] = useState(() => normalizeITRole(currentUser?.role))
+  const supportMemberId = useMemo(() => {
+    if (isITAdmin(role)) return null
+    if (currentUser?.id) return currentUser.id
+    const byEmail = team.find((member) => member.email === currentUser?.email)
+    return byEmail?.id || null
+  }, [currentUser?.email, currentUser?.id, role, team])
 
   useEffect(() => {
-    Promise.all([apiFetch("/tickets?department=IT"), apiFetch("/assets"), apiFetch("/users?role=IT")])
+    Promise.all([
+      apiFetch("/tickets?department=IT", undefined, { forceBackend: true }),
+      apiFetch("/assets", undefined, { forceBackend: true }),
+      apiFetch("/users?role=IT_SUPPORT", undefined, { forceBackend: true }),
+    ])
       .then(([ticketData, assetData, userData]) => {
-        setTickets(ticketData.map(normalizeTicket))
+        const normalizedTickets = (ticketData as unknown[]).map(normalizeTicket)
         setAssets(assetData.map(normalizeAsset))
-        setTeam((userData as ITUser[]).filter((member) => member.isActive !== false))
+        const activeTeam = (userData as ITUser[]).filter((member) => member.isActive !== false)
+        setTeam(activeTeam)
+
+        if (isITAdmin(role)) {
+          setTickets(normalizedTickets)
+        } else {
+          const supportId = currentUser?.id || activeTeam.find((member) => member.email === currentUser?.email)?.id
+          setTickets(supportId ? normalizedTickets.filter((ticket) => ticket.assignedToId === supportId) : [])
+        }
         setUsingMock(false)
       })
       .catch(() => setUsingMock(true))
       .finally(() => setLoading(false))
-  }, [])
+  }, [currentUser?.email, currentUser?.id, role])
 
   const categoryStats = useMemo(() => {
     const counts = { SOFTWARE: 0, HARDWARE: 0, NETWORK: 0, ASSET_REQUEST: 0, GENERAL: 0 }
@@ -58,8 +79,19 @@ export function useITDashboard() {
   )
 
   const memberLoads = useMemo(
-    () => team.map((m) => ({ ...m, load: getMemberLoad(tickets, m.id), resolved: tickets.filter((t) => t.assignedToId === m.id && t.status === "RESOLVED").length })).sort((a, b) => a.load - b.load),
-    [team, tickets],
+    () => {
+      const scopedTeam = isITAdmin(role)
+        ? team
+        : team.filter((member) => member.id === supportMemberId)
+      return scopedTeam
+        .map((m) => ({
+          ...m,
+          load: getMemberLoad(tickets, m.id),
+          resolved: tickets.filter((t) => t.assignedToId === m.id && t.status === "RESOLVED").length,
+        }))
+        .sort((a, b) => a.load - b.load)
+    },
+    [team, tickets, role, supportMemberId],
   )
 
   return { tickets, loading, usingMock, role, categoryStats, overdueTickets, lowStockAlerts, memberLoads, adminAlerts }

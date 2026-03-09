@@ -9,7 +9,7 @@
 
 // const MOCK_USERS = [
 //   { email: "hr@company.com", password: "password123", role: "HR", name: "HR Manager" },
-//   { email: "admin@company.com", password: "password123", role: "ADMIN", name: "Admin User" },
+//   { email: "it.admin@company.com", password: "password123", role: "IT_ADMIN", name: "IT Admin Lead" },
 //   { email: "employee@company.com", password: "password123", role: "EMPLOYEE", name: "Test Employee" },
 // ]
 
@@ -25,7 +25,8 @@
 //     const user = localStorage.getItem("user")
 //     if (user) {
 //       const parsed = JSON.parse(user)
-//       if (parsed.role === "HR" || parsed.role === "ADMIN") router.push("/HR")
+//       if (parsed.role === "HR") router.push("/HR")
+//       else if (parsed.role === "IT_ADMIN" || parsed.role === "IT_SUPPORT") router.push("/IT")
 //       else router.push("/employee")
 //     }
 //   }, [])
@@ -54,8 +55,10 @@
 //       }))
 
 //       // Redirect based on role
-//       if (user.role === "HR" || user.role === "ADMIN") {
+//       if (user.role === "HR") {
 //         router.push("/HR")
+//       } else if (user.role === "IT_ADMIN" || user.role === "IT_SUPPORT") {
+//         router.push("/IT")
 //       } else {
 //         router.push("/employee")
 //       }
