@@ -21,6 +21,7 @@ export default function HomePage() {
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
   const [selectedRole, setSelectedRole] = useState("")
+    const [Showtext, setShowtext] = useState(false)
 
   useEffect(() => {
     // If already logged in, redirect
@@ -85,7 +86,7 @@ export default function HomePage() {
             <DropdownMenuTrigger>
               <Button className="w-full">Select Role</Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent>
+            <DropdownMenuContent onClick={()=>setShowtext(true)}>
               {["HR", "ADMIN", "EMPLOYEE"].map(role => (
                 <DropdownMenuCheckboxItem
                   key={role}
@@ -96,8 +97,13 @@ export default function HomePage() {
               ))}
             </DropdownMenuContent>
           </DropdownMenu>
-                    <p className="text-sm">You Selected: {selectedRole}</p>
-
+          {/* <p className="text-sm" showText>{selectedRole}</p>
+           */}
+           {
+            Showtext &&(<p className="text-sm">
+              You Selected :{selectedRole}
+            </p>)
+           }
           </center>
           <div className="space-y-2">
             <Label htmlFor="email">Email</Label>
