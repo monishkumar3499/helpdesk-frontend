@@ -11,13 +11,13 @@ export default function HrLayout({ children }: { children: ReactNode }) {
   const [sessionTime, setSessionTime] = useState(0)
 
   useEffect(() => {
-    // Get user from localStorage
+    // Gettingf user from localStorage
     const stored = localStorage.getItem("user")
     if (stored) {
       const user = JSON.parse(stored)
       setEmail(user.email)
     } else {
-      // No user logged in → redirect to login
+      // No user loagged in → redirect to login
       router.push("/login")
     }
 
@@ -40,7 +40,7 @@ export default function HrLayout({ children }: { children: ReactNode }) {
 
   function handleLogout() {
     localStorage.removeItem("user")
-    router.push("/login")
+    router.push("/")
   }
 
   return (
