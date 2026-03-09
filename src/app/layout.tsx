@@ -1,4 +1,5 @@
 import { TooltipProvider } from "@/components/ui/tooltip"
+import { Toaster } from "sonner"
 import "./globals.css"
 
 export default function RootLayout({
@@ -9,7 +10,16 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        <TooltipProvider>{children}</TooltipProvider>
+
+        <TooltipProvider>
+
+          {children}
+
+          {/* Global Toast Notifications */}
+          <Toaster position="top-right" richColors />
+
+        </TooltipProvider>
+
       </body>
     </html>
   )

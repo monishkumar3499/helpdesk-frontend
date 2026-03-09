@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import { useForm } from "react-hook-form"
+import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -29,62 +30,108 @@ type FormValues = {
   summary: string
   priority: "LOW" | "HIGH" | "CRITICAL"
   department: "HR" | "IT"
+  assetDescription?: string
+  serviceDescription?: string
 }
 
 export default function RaiseTicketPage() {
 
-  const [loading, setLoading] = useState(false)
+  const [loading,setLoading] = useState(false)
+  const [image,setImage] = useState<File | null>(null)
+  const [preview,setPreview] = useState<string | null>(null)
+  const [selectedOptions,setSelectedOptions] = useState<string[]>([])
 
   const form = useForm<FormValues>({
-    defaultValues: {
-      title: "",
-      summary: "",
-      priority: "LOW",
-      department: "IT"
+    defaultValues:{
+      title:"",
+      summary:"",
+      priority:"LOW",
+      department:"HR"
     }
   })
 
-  async function onSubmit(values: FormValues) {
+  function handleImageChange(e:React.ChangeEvent<HTMLInputElement>){
 
-    try {
+    const file = e.target.files?.[0]
+    if(!file) return
+
+    setImage(file)
+    setPreview(URL.createObjectURL(file))
+  }
+
+  function toggleOption(option:string){
+
+    setSelectedOptions(prev =>
+      prev.includes(option)
+        ? prev.filter(o => o !== option)
+        : [...prev,option]
+    )
+  }
+
+  async function onSubmit(values:FormValues){
+
+    if(selectedOptions.includes("ASSET") && !values.assetDescription){
+      form.setError("assetDescription",{message:"Asset description required"})
+      return
+    }
+
+    if(selectedOptions.includes("SERVICE") && !values.serviceDescription){
+      form.setError("serviceDescription",{message:"Service description required"})
+      return
+    }
+
+    try{
 
       setLoading(true)
 
-      const payload = {
-        ...values,
+      const formData = new FormData()
 
-        // TEMP user id (later replace with auth user)
-        createdById: "test-user-id"
+      formData.append("title",values.title)
+      formData.append("summary",values.summary)
+      formData.append("priority",values.priority)
+      formData.append("department",values.department)
+
+      formData.append("assetDescription",values.assetDescription || "")
+      formData.append("serviceDescription",values.serviceDescription || "")
+
+      formData.append("createdById","101")
+
+      if(image){
+        formData.append("image",image)
       }
 
-      const res = await fetch("http://localhost:3000/tickets", {
-
-        method: "POST",
-
-        headers: {
-          "Content-Type": "application/json"
-        },
-
-        body: JSON.stringify(payload)
+      const res = await fetch("http://localhost:3001/tickets",{
+        method:"POST",
+        body:formData
       })
+
+      if(!res.ok){
+        throw new Error("Ticket creation failed")
+      }
 
       const data = await res.json()
 
-      console.log("Ticket created:", data)
-
-      alert("Ticket submitted successfully!")
+      toast.success("Ticket submitted successfully!",{
+        description:`Ticket #${data.ticketNumber} created`
+      })
 
       form.reset()
+      setPreview(null)
+      setImage(null)
+      setSelectedOptions([])
 
-    } catch (error) {
+    }catch(error){
 
-      console.error("Error creating ticket:", error)
+      toast.error("Ticket submission failed")
 
-    } finally {
+      console.error(error)
+
+    }finally{
 
       setLoading(false)
 
     }
+
   }
 
   return (
@@ -99,7 +146,7 @@ export default function RaiseTicketPage() {
 
         <form
           onSubmit={form.handleSubmit(onSubmit)}
-          className="space-y-4"
+          className="space-y-5"
         >
 
           {/* Title */}
@@ -107,21 +154,19 @@ export default function RaiseTicketPage() {
           <FormField
             control={form.control}
             name="title"
-            render={({ field }) => (
+            rules={{ required:"Title is required" }}
+            render={({field})=>(
               <FormItem>
 
-                <FormLabel>Title</FormLabel>
+                <FormLabel>
+                  Title <span className="text-red-500">*</span>
+                </FormLabel>
 
                 <FormControl>
-
-                  <Input
-                    placeholder="Enter issue title"
-                    {...field}
-                  />
-
+                  <Input placeholder="Enter issue title" {...field}/>
                 </FormControl>
 
-                <FormMessage />
+                <FormMessage/>
 
               </FormItem>
             )}
@@ -132,22 +177,19 @@ export default function RaiseTicketPage() {
           <FormField
             control={form.control}
             name="summary"
-            render={({ field }) => (
+            rules={{ required:"Summary is required" }}
+            render={({field})=>(
               <FormItem>
 
-                <FormLabel>Summary</FormLabel>
+                <FormLabel>
+                  Summary <span className="text-red-500">*</span>
+                </FormLabel>
 
                 <FormControl>
-
-                  <Textarea
-                    placeholder="Describe the issue"
-                    rows={4}
-                    {...field}
-                  />
-
+                  <Textarea rows={4} placeholder="Describe the issue" {...field}/>
                 </FormControl>
 
-                <FormMessage />
+                <FormMessage/>
 
               </FormItem>
             )}
@@ -158,35 +200,31 @@ export default function RaiseTicketPage() {
           <FormField
             control={form.control}
             name="priority"
-            render={({ field }) => (
+            rules={{ required:"Priority is required" }}
+            render={({field})=>(
               <FormItem>
 
-                <FormLabel>Priority</FormLabel>
+                <FormLabel>
+                  Priority <span className="text-red-500">*</span>
+                </FormLabel>
 
-                <Select
-                  onValueChange={field.onChange}
-                  defaultValue={field.value}
-                >
+                <Select onValueChange={field.onChange} value={field.value}>
 
                   <FormControl>
-
                     <SelectTrigger>
-                      <SelectValue placeholder="Select priority" />
+                      <SelectValue placeholder="Select priority"/>
                     </SelectTrigger>
-
                   </FormControl>
 
                   <SelectContent>
-
                     <SelectItem value="LOW">Low</SelectItem>
                     <SelectItem value="HIGH">High</SelectItem>
                     <SelectItem value="CRITICAL">Critical</SelectItem>
-
                   </SelectContent>
 
                 </Select>
 
-                <FormMessage />
+                <FormMessage/>
 
               </FormItem>
             )}
@@ -197,49 +235,148 @@ export default function RaiseTicketPage() {
           <FormField
             control={form.control}
             name="department"
-            render={({ field }) => (
+            rules={{ required:"Department required" }}
+            render={({field})=>(
               <FormItem>
 
-                <FormLabel>Department</FormLabel>
+                <FormLabel>
+                  Department <span className="text-red-500">*</span>
+                </FormLabel>
 
-                <Select
-                  onValueChange={field.onChange}
-                  defaultValue={field.value}
-                >
+                <Select onValueChange={field.onChange} value={field.value}>
 
                   <FormControl>
-
                     <SelectTrigger>
-                      <SelectValue placeholder="Select department" />
+                      <SelectValue/>
                     </SelectTrigger>
-
                   </FormControl>
 
                   <SelectContent>
-
-                    <SelectItem value="IT">IT</SelectItem>
                     <SelectItem value="HR">HR</SelectItem>
-
+                    <SelectItem value="IT">IT</SelectItem>
                   </SelectContent>
 
                 </Select>
 
-                <FormMessage />
+                <FormMessage/>
 
               </FormItem>
             )}
           />
 
-          {/* Submit Button */}
+          {/* IT Options */}
+
+          {form.watch("department") === "IT" && (
+
+            <div className="space-y-2">
+
+              <FormLabel>IT Request Type</FormLabel>
+
+              <div className="flex gap-6">
+
+                <label className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={selectedOptions.includes("ASSET")}
+                    onChange={()=>toggleOption("ASSET")}
+                  />
+                  Asset
+                </label>
+
+                <label className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={selectedOptions.includes("SERVICE")}
+                    onChange={()=>toggleOption("SERVICE")}
+                  />
+                  Service
+                </label>
+
+              </div>
+
+            </div>
+
+          )}
+
+          {/* Asset Description */}
+
+          {selectedOptions.includes("ASSET") && (
+
+            <FormField
+              control={form.control}
+              name="assetDescription"
+              render={({field})=>(
+                <FormItem>
+
+                  <FormLabel>
+                    Asset Description <span className="text-red-500">*</span>
+                  </FormLabel>
+
+                  <FormControl>
+                    <Textarea {...field}/>
+                  </FormControl>
+
+                  <FormMessage/>
+
+                </FormItem>
+              )}
+            />
+
+          )}
+
+          {/* Service Description */}
+
+          {selectedOptions.includes("SERVICE") && (
+
+            <FormField
+              control={form.control}
+              name="serviceDescription"
+              render={({field})=>(
+                <FormItem>
+
+                  <FormLabel>
+                    Service Description <span className="text-red-500">*</span>
+                  </FormLabel>
+
+                  <FormControl>
+                    <Textarea {...field}/>
+                  </FormControl>
+
+                  <FormMessage/>
+
+                </FormItem>
+              )}
+            />
+
+          )}
+
+          {/* Image Upload */}
+
+          <div className="space-y-2">
+
+            <FormLabel>Attach Image</FormLabel>
+
+            <Input
+              type="file"
+              accept="image/*"
+              onChange={handleImageChange}
+            />
+
+            {preview && (
+              <img
+                src={preview}
+                className="w-40 h-40 object-cover rounded border"
+              />
+            )}
+
+          </div>
 
           <Button
             type="submit"
             className="w-full"
             disabled={loading}
           >
-
             {loading ? "Submitting..." : "Submit Ticket"}
-
           </Button>
 
         </form>

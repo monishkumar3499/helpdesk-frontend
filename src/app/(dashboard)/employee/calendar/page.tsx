@@ -29,7 +29,7 @@ const priorityColor: Record<string,string> = {
   LOW:"bg-blue-400"
 }
 
-export default function CalendarPage() {
+export default function CalendarPage(){
 
   const today = new Date()
 
@@ -45,7 +45,7 @@ export default function CalendarPage() {
 
       try{
 
-        const data = await apiFetch("/tickets?department=HR")
+        const data = await apiFetch("/tickets")
 
         setTickets(data)
 
@@ -69,7 +69,10 @@ export default function CalendarPage() {
     return <p className="p-6 text-sm text-gray-500">Loading calendar...</p>
   }
 
+  /* Calendar Layout */
+
   const firstDay = new Date(currentYear,currentMonth,1).getDay()
+
   const daysInMonth = new Date(currentYear,currentMonth+1,0).getDate()
 
   const cells = [
@@ -77,46 +80,86 @@ export default function CalendarPage() {
     ...Array.from({length:daysInMonth},(_,i)=>i+1)
   ]
 
+  /* Safe Date Parser */
+
+  function parseTicketDate(dateStr:string){
+
+    if(dateStr.includes("T")){
+      return new Date(dateStr)
+    }
+
+    try{
+
+      const [datePart] = dateStr.split(",")
+
+      const [day,month,year] = datePart.split("/").map(Number)
+
+      return new Date(year,month-1,day)
+
+    }catch{
+      return new Date(dateStr)
+    }
+
+  }
+
+  /* Group tickets by day */
+
   const ticketsByDay:Record<number,Ticket[]> = {}
 
-  tickets.forEach(t=>{
-    const d = new Date(t.createdAt)
+  tickets.forEach(ticket=>{
 
-    if(d.getMonth()===currentMonth && d.getFullYear()===currentYear){
+    const date = parseTicketDate(ticket.createdAt)
 
-      const day = d.getDate()
+    if(
+      date.getMonth()===currentMonth &&
+      date.getFullYear()===currentYear
+    ){
+
+      const day = date.getDate()
 
       if(!ticketsByDay[day]) ticketsByDay[day] = []
 
-      ticketsByDay[day].push(t)
+      ticketsByDay[day].push(ticket)
 
     }
+
   })
 
+  /* Navigation */
+
   const prevMonth=()=>{
+
     if(currentMonth===0){
       setCurrentMonth(11)
       setCurrentYear(y=>y-1)
     }else{
       setCurrentMonth(m=>m-1)
     }
+
     setSelectedDay(null)
+
   }
 
   const nextMonth=()=>{
+
     if(currentMonth===11){
       setCurrentMonth(0)
       setCurrentYear(y=>y+1)
     }else{
       setCurrentMonth(m=>m+1)
     }
+
     setSelectedDay(null)
+
   }
 
   const selectedTickets = selectedDay ? (ticketsByDay[selectedDay] || []) : []
 
   return(
+
     <div className="space-y-6">
+
+      {/* Title */}
 
       <div>
         <h2 className="text-2xl font-bold text-slate-800">Calendar</h2>
@@ -157,30 +200,40 @@ export default function CalendarPage() {
 
           <CardContent>
 
+            {/* Weekdays */}
+
             <div className="grid grid-cols-7 mb-2">
 
-              {DAYS.map(d=>(
-                <div key={d} className="text-center text-xs font-semibold text-slate-400 py-1">
-                  {d}
+              {DAYS.map(day=>(
+                <div key={day} className="text-center text-xs font-semibold text-slate-400 py-1">
+                  {day}
                 </div>
               ))}
 
             </div>
 
+            {/* Calendar Grid */}
+
             <div className="grid grid-cols-7 gap-1">
 
-              {cells.map((day,idx)=>{
+              {cells.map((day,index)=>{
 
-                if(!day) return <div key={idx}/>
+                if(!day) return <div key={index}/>
 
                 const dayTickets = ticketsByDay[day] || []
+
+                const isToday =
+                  day === today.getDate() &&
+                  currentMonth === today.getMonth() &&
+                  currentYear === today.getFullYear()
 
                 return(
 
                   <button
                     key={day}
                     onClick={()=>setSelectedDay(day)}
-                    className="relative rounded-lg p-1.5 min-h-[52px] hover:bg-slate-100 text-left"
+                    className={`relative rounded-lg p-2 min-h-[56px] text-left hover:bg-slate-100
+                    ${isToday ? "bg-blue-50 border border-blue-200" : ""}`}
                   >
 
                     <span className="text-sm font-medium text-slate-700">
@@ -188,13 +241,19 @@ export default function CalendarPage() {
                     </span>
 
                     {dayTickets.length>0 && (
+                      <span className="absolute top-1 right-1 text-[10px] bg-slate-700 text-white rounded-full px-1">
+                        {dayTickets.length}
+                      </span>
+                    )}
 
-                      <div className="flex flex-wrap gap-0.5 mt-1">
+                    {dayTickets.length>0 && (
 
-                        {dayTickets.slice(0,3).map(t=>(
+                      <div className="flex flex-wrap gap-1 mt-1">
+
+                        {dayTickets.slice(0,3).map(ticket=>(
                           <span
-                            key={t.id}
-                            className={`h-1.5 w-1.5 rounded-full ${priorityColor[t.priority]}`}
+                            key={ticket.id}
+                            className={`h-2 w-2 rounded-full ${priorityColor[ticket.priority]}`}
                           />
                         ))}
 
@@ -244,19 +303,19 @@ export default function CalendarPage() {
 
               <div className="space-y-3">
 
-                {selectedTickets.map(t=>(
-                  <div key={t.id} className="p-3 bg-slate-50 rounded-lg border">
+                {selectedTickets.map(ticket=>(
+                  <div key={ticket.id} className="p-3 bg-slate-50 rounded-lg border">
 
                     <p className="text-sm font-medium text-slate-800">
-                      {t.title}
+                      {ticket.title}
                     </p>
 
                     <p className="text-xs text-slate-500">
-                      {t.createdBy?.name}
+                      {ticket.createdBy?.name}
                     </p>
 
                     <Badge className="mt-2 text-xs">
-                      {t.status.replace("_"," ")}
+                      {ticket.status.replace("_"," ")}
                     </Badge>
 
                   </div>
@@ -273,5 +332,6 @@ export default function CalendarPage() {
       </div>
 
     </div>
+
   )
 }
