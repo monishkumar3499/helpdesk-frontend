@@ -24,61 +24,48 @@ import {
   FormMessage
 } from "@/components/ui/form"
 
+type FormValues = {
+  title: string
+  summary: string
+  priority: "LOW" | "HIGH" | "CRITICAL"
+  department: "HR" | "IT"
+}
 
 export default function RaiseTicketPage() {
 
-  const [imageFile, setImageFile] = useState<File | null>(null)
-  const [imagePreview, setImagePreview] = useState<string>("")
   const [loading, setLoading] = useState(false)
 
-  const form = useForm({
+  const form = useForm<FormValues>({
     defaultValues: {
       title: "",
       summary: "",
-      priority: "",
-      department: ""
+      priority: "LOW",
+      department: "IT"
     }
   })
 
-
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-
-    const file = e.target.files?.[0]
-
-    if (!file) return
-
-    setImageFile(file)
-
-    const reader = new FileReader()
-
-    reader.onloadend = () => {
-      setImagePreview(reader.result as string)
-    }
-
-    reader.readAsDataURL(file)
-  }
-
-
-  async function onSubmit(values: any) {
+  async function onSubmit(values: FormValues) {
 
     try {
 
       setLoading(true)
 
-      const formData = new FormData()
+      const payload = {
+        ...values,
 
-      formData.append("title", values.title)
-      formData.append("summary", values.summary)
-      formData.append("priority", values.priority)
-      formData.append("department", values.department)
-
-      if (imageFile) {
-        formData.append("image", imageFile)
+        // TEMP user id (later replace with auth user)
+        createdById: "test-user-id"
       }
 
       const res = await fetch("http://localhost:3000/tickets", {
+
         method: "POST",
-        body: formData
+
+        headers: {
+          "Content-Type": "application/json"
+        },
+
+        body: JSON.stringify(payload)
       })
 
       const data = await res.json()
@@ -88,8 +75,6 @@ export default function RaiseTicketPage() {
       alert("Ticket submitted successfully!")
 
       form.reset()
-      setImageFile(null)
-      setImagePreview("")
 
     } catch (error) {
 
@@ -101,7 +86,6 @@ export default function RaiseTicketPage() {
 
     }
   }
-
 
   return (
 
@@ -125,20 +109,23 @@ export default function RaiseTicketPage() {
             name="title"
             render={({ field }) => (
               <FormItem>
+
                 <FormLabel>Title</FormLabel>
 
                 <FormControl>
+
                   <Input
                     placeholder="Enter issue title"
                     {...field}
                   />
+
                 </FormControl>
 
                 <FormMessage />
+
               </FormItem>
             )}
           />
-
 
           {/* Summary */}
 
@@ -151,11 +138,13 @@ export default function RaiseTicketPage() {
                 <FormLabel>Summary</FormLabel>
 
                 <FormControl>
+
                   <Textarea
                     placeholder="Describe the issue"
                     rows={4}
                     {...field}
                   />
+
                 </FormControl>
 
                 <FormMessage />
@@ -163,7 +152,6 @@ export default function RaiseTicketPage() {
               </FormItem>
             )}
           />
-
 
           {/* Priority */}
 
@@ -191,7 +179,6 @@ export default function RaiseTicketPage() {
                   <SelectContent>
 
                     <SelectItem value="LOW">Low</SelectItem>
-                    <SelectItem value="MEDIUM">Medium</SelectItem>
                     <SelectItem value="HIGH">High</SelectItem>
                     <SelectItem value="CRITICAL">Critical</SelectItem>
 
@@ -204,7 +191,6 @@ export default function RaiseTicketPage() {
               </FormItem>
             )}
           />
-
 
           {/* Department */}
 
@@ -244,48 +230,6 @@ export default function RaiseTicketPage() {
             )}
           />
 
-
-          {/* Image Upload */}
-
-          <FormItem>
-
-            <FormLabel>Attach Image</FormLabel>
-
-            <FormControl>
-
-              <Input
-                type="file"
-                accept="image/*"
-                onChange={handleImageChange}
-                className="cursor-pointer"
-              />
-
-            </FormControl>
-
-          </FormItem>
-
-
-          {/* Image Preview */}
-
-          {imagePreview && (
-
-            <div className="space-y-2">
-
-              <p className="text-sm text-slate-600">
-                Preview
-              </p>
-
-              <img
-                src={imagePreview}
-                alt="preview"
-                className="max-w-xs rounded-lg border"
-              />
-
-            </div>
-
-          )}
-
-
           {/* Submit Button */}
 
           <Button
@@ -293,7 +237,9 @@ export default function RaiseTicketPage() {
             className="w-full"
             disabled={loading}
           >
+
             {loading ? "Submitting..." : "Submit Ticket"}
+
           </Button>
 
         </form>
