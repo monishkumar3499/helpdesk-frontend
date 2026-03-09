@@ -1,22 +1,86 @@
 "use client"
 
-import { useEffect, useState } from "react"
 import { apiFetch } from "@/lib/api"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
+import { useEffect, useState } from "react"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
+import { CheckCircle2, Clock, AlertTriangle, TrendingUp, Users, BarChart3, Activity } from "lucide-react"
 
 type Ticket = {
-  id: string; title: string; status: string
-  priority: string; department: string
+  id: string
+  category: string
+  employeeName: string
+  status: string
+  priority: string
+  hrComment?: string
+  rejectedReason?: string
   createdBy?: { name: string }
+  title:string
 }
 
-export default function HrDashboard() {
-  const [tickets, setTickets] = useState<Ticket[]>([])
-  const [loading, setLoading] = useState(true)
-  const [usingMock, setUsingMock] = useState(false)
+function BarChart({ data, maxVal }: { data: { label: string; value: number; color: string }[]; maxVal: number }) {
+  return (
+    <div className="space-y-3">
+      {data.map(item => (
+        <div key={item.label} className="flex items-center gap-3">
+          <span className="text-xs text-slate-500 w-24 shrink-0">{item.label}</span>
+          <div className="flex-1 bg-slate-100 rounded-full h-5 overflow-hidden">
+            <div
+              className={`h-full rounded-full ${item.color} flex items-center justify-end pr-2 transition-all duration-700`}
+              style={{ width: `${maxVal > 0 ? (item.value / maxVal) * 100 : 0}%` }}
+            >
+              <span className="text-[10px] text-white font-bold">{item.value}</span>
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
 
+export default function ReportsPage() {
+  const [tickets, setTickets] = useState<Ticket[]>([])
+    const [usingMock, setUsingMock] = useState(false)
+    const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    // Read from localStorage — same data as Tickets page
+    const stored = localStorage.getItem("hr_tickets")
+    if (stored) setTickets(JSON.parse(stored))
+  }, [])
+
+  const open = tickets.filter(t => t.status === "OPEN").length
+  const inProgress = tickets.filter(t => t.status === "IN_PROGRESS").length
+  const resolved = tickets.filter(t => t.status === "RESOLVED").length
+  const rejected = tickets.filter(t => t.status === "REJECTED").length
+  const critical = tickets.filter(t => t.priority === "CRITICAL").length
+  const resolutionRate = tickets.length > 0 ? Math.round((resolved / tickets.length) * 100) : 0
+
+  const statusData = [
+    { label: "Open", value: open, color: "bg-blue-500" },
+    { label: "In Progress", value: inProgress, color: "bg-yellow-500" },
+    { label: "Resolved", value: resolved, color: "bg-green-500" },
+    { label: "Rejected", value: rejected, color: "bg-red-500" },
+  ]
+  const maxStatus = Math.max(...statusData.map(d => d.value), 1)
+
+  const priorityData = [
+    { label: "Critical", value: critical, color: "bg-red-500" },
+    { label: "High", value: tickets.filter(t => t.priority === "HIGH").length, color: "bg-orange-400" },
+    { label: "Low", value: tickets.filter(t => t.priority === "LOW").length, color: "bg-blue-400" },
+  ]
+  const maxPriority = Math.max(...priorityData.map(d => d.value), 1)
+
+  const submitterCount: Record<string, number> = {}
+  tickets.forEach(t => {
+    submitterCount[t.employeeName] = (submitterCount[t.employeeName] || 0) + 1
+  })
+  const topSubmitters = Object.entries(submitterCount).sort((a, b) => b[1] - a[1]).slice(0, 5)
+
+  // HR commented tickets
+  const commentedTickets = tickets.filter(t => t.hrComment)
   useEffect(() => {
     apiFetch("/tickets?department=HR")
       .then((data) => {
@@ -39,58 +103,82 @@ export default function HrDashboard() {
       })
       .finally(() => setLoading(false))
   }, [])
-
-  const open = tickets.filter(t => t.status === "OPEN").length
-  const inProgress = tickets.filter(t => t.status === "IN_PROGRESS").length
-  const resolved = tickets.filter(t => t.status === "RESOLVED").length
-  const rejected = tickets.filter(t => t.status === "REJECTED").length
-  const critical = tickets.filter(t => t.priority === "CRITICAL").length
-  const resolutionRate = tickets.length > 0 ? Math.round((resolved / tickets.length) * 100) : 0
-
   return (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-2xl font-bold text-slate-800">HR Dashboard</h2>
+    <>
+          <div>
+        <h2 className="text-2xl font-bold text-slate-800">Reports & Analytics</h2>
         <p className="text-sm text-slate-500 mt-1">
           {new Date().toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
-          {usingMock && <span className="ml-2 text-orange-500">(Demo data — backend offline)</span>}
+          {usingMock && <span className="ml-2 text-orange-500">(Dummy data (Testing) backend offline)</span>}
         </p>
       </div>
+    <div className="space-y-6">
+      <div>
 
-      {loading ? (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {[...Array(8)].map((_, i) => <div key={i} className="h-24 rounded-xl bg-slate-100 animate-pulse" />)}
-        </div>
-      ) : (
-        <>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {[
-              { label: "Total Tickets", value: tickets.length, color: "border-l-blue-500", textColor: "text-slate-800" },
-              { label: "Open", value: open, color: "border-l-orange-500", textColor: "text-orange-600" },
-              { label: "In Progress", value: inProgress, color: "border-l-yellow-500", textColor: "text-yellow-600" },
-              { label: "Resolved", value: resolved, color: "border-l-green-500", textColor: "text-green-600" },
-              { label: "Rejected", value: rejected, color: "border-l-red-500", textColor: "text-red-600" },
-              { label: "Critical", value: critical, color: "border-l-red-900", textColor: "text-red-900" },
-              { label: "Resolution Rate", value: `${resolutionRate}%`, color: "border-l-purple-500", textColor: "text-purple-600" },
-            ].map(kpi => (
-              <Card key={kpi.label} className={`border-l-4 ${kpi.color}`}>
-                <CardHeader className="pb-1 pt-3 px-4">
-                  <CardTitle className="text-xs text-slate-500">{kpi.label}</CardTitle>
-                </CardHeader>
-                <CardContent className="px-4 pb-3">
-                  <p className={`text-3xl font-bold ${kpi.textColor}`}>{kpi.value}</p>
-                </CardContent>
-              </Card>
-            ))}
-            <Card className="border-l-4 border-l-slate-500 flex items-center justify-center">
-              <Link href="/HR/Tickets" className="w-full p-4">
-                <Button className="w-full bg-slate-800 hover:bg-slate-700">View Tickets →</Button>
-              </Link>
-            </Card>
-          </div>
+      </div>
 
-          {/* Recent Tickets */}
-          <div>
+      {/* KPI Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {[
+          { label: "Total Tickets", value: tickets.length, color: "border-l-blue-500", textColor: "text-slate-800", icon: <BarChart3 className="h-8 w-8 text-blue-400" /> },
+          { label: "Resolved", value: resolved, color: "border-l-green-500", textColor: "text-green-600", icon: <CheckCircle2 className="h-8 w-8 text-green-400" /> },
+          { label: "Critical Issues", value: critical, color: "border-l-red-500", textColor: "text-red-600", icon: <AlertTriangle className="h-8 w-8 text-red-400" /> },
+          { label: "In Progress", value: inProgress, color: "border-l-yellow-600", textColor: "text-yellow-600", icon: <Users className="h-8 w-8 text-yellow-600" /> },
+        ].map(kpi => (
+          <Card key={kpi.label} className={`border-l-4 ${kpi.color}`}>
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs text-slate-500 font-medium">{kpi.label}</p>
+                  <p className={`text-3xl font-bold mt-1 ${kpi.textColor}`}>{kpi.value}</p>
+                </div>
+                {kpi.icon}
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      {/* Charts */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <BarChart3 className="h-4 w-4 text-slate-500" />Tickets by Status
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <BarChart data={statusData} maxVal={maxStatus} />
+            <div className="flex gap-4 mt-4 pt-4 border-t flex-wrap">
+              <div className="text-center"><p className="text-xl font-bold text-blue-600">{open}</p><p className="text-xs text-slate-500">Open</p></div>
+              <div className="text-center"><p className="text-xl font-bold text-yellow-600">{inProgress}</p><p className="text-xs text-slate-500">In Progress</p></div>
+              <div className="text-center"><p className="text-xl font-bold text-green-600">{resolved}</p><p className="text-xs text-slate-500">Resolved</p></div>
+              <div className="text-center"><p className="text-xl font-bold text-red-600">{rejected}</p><p className="text-xs text-slate-500">Rejected</p></div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <Activity className="h-4 w-4 text-slate-500" />Tickets by Priority
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <BarChart data={priorityData} maxVal={maxPriority} />
+            <div className="mt-4 pt-4 border-t flex items-center justify-between text-sm">
+              <span className="text-slate-500">Avg. Resolution Time</span>
+              <div className="flex items-center gap-1.5">
+                <Clock className="h-4 w-4 text-slate-400" />
+                <span className="font-semibold">18 hrs</span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Recent Ticket raisers */}
+      <div>
             <h3 className="text-lg font-semibold text-slate-700 mb-3">Recent Tickets</h3>
             <div className="space-y-2">
               {tickets.slice(0, 5).map(t => (
@@ -116,8 +204,38 @@ export default function HrDashboard() {
               ))}
             </div>
           </div>
-        </>
-      )}
+      {/* HR Comments Log */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2">
+            💬 HR Comments Log
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {commentedTickets.length === 0 ? (
+            <p className="text-sm text-slate-400 text-center py-4">No comments yet</p>
+          ) : (
+            <div className="space-y-3">
+              {commentedTickets.map(t => (
+                <div key={t.id} className={`p-3 rounded-lg border-l-2 ${
+                  t.status === "REJECTED" ? "bg-red-50 border-red-400" : "bg-green-50 border-green-400"
+                }`}>
+                  <div className="flex items-center justify-between mb-1">
+                    <p className="text-sm font-semibold text-slate-800">{t.employeeName}</p>
+                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                      t.status === "REJECTED" ? "bg-red-100 text-red-700" :
+                      t.status === "RESOLVED" ? "bg-green-100 text-green-700" :
+                      "bg-yellow-100 text-yellow-700"
+                    }`}>{t.status.replace("_", " ")}</span>
+                  </div>
+                  <p className="text-xs text-slate-600"><span className="font-medium">HR: </span>{t.hrComment}</p>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
+    </>
   )
 }

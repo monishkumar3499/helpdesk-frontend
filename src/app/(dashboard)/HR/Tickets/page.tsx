@@ -78,7 +78,7 @@ export default function HrTicketsPage() {
       .finally(() => setLoading(false))
   }, [])
 
-  // Save to localStorage whenever tickets change (for Dashboard + Reports sync)
+  // to save to local storage whenever tickets change (for dashboard + reports sync)
   useEffect(() => {
     if (tickets.length > 0) {
       localStorage.setItem("hr_tickets", JSON.stringify(tickets))

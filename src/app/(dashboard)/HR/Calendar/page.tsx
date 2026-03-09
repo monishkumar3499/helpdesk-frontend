@@ -87,7 +87,7 @@ export default function CalendarPage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Calendar */}
+        {/* Calendar part */}
         <Card className="lg:col-span-2">
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
@@ -105,13 +105,13 @@ export default function CalendarPage() {
             </div>
           </CardHeader>
           <CardContent>
-            {/* Day headers */}
+            {/* Day heading */}
             <div className="grid grid-cols-7 mb-2">
               {DAYS.map((d) => (
                 <div key={d} className="text-center text-xs font-semibold text-slate-400 py-1">{d}</div>
               ))}
             </div>
-            {/* Cells */}
+            {/* each cells */}
             <div className="grid grid-cols-7 gap-1">
               {cells.map((day, idx) => {
                 if (!day) return <div key={`empty-${idx}`} />
@@ -149,7 +149,7 @@ export default function CalendarPage() {
               })}
             </div>
 
-            {/* Legend */}
+            {/* Legend column */}
             <div className="flex gap-4 mt-4 pt-4 border-t">
               {Object.entries(priorityColor).map(([p, c]) => (
                 <div key={p} className="flex items-center gap-1.5 text-xs text-slate-500">

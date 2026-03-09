@@ -23,7 +23,7 @@ const roleColors: Record<Role, string> = {
 }
 
 const MOCK: Employee[] = [
-  { id: "1", name: "Aarav Sharma", email: "aarav@company.com", role: "EMPLOYEE", isActive: true, createdAt: "2024-01-15" },
+  { id: "1", name: "Arman singh", email: "aarav@company.com", role: "EMPLOYEE", isActive: true, createdAt: "2024-01-15" },
   { id: "2", name: "Priya Nair", email: "priya@company.com", role: "HR", isActive: true, createdAt: "2023-11-20" },
   { id: "3", name: "Rohan Mehta", email: "rohan@company.com", role: "IT", isActive: true, createdAt: "2024-02-10" },
   { id: "4", name: "Sneha Pillai", email: "sneha@company.com", role: "EMPLOYEE", isActive: false, createdAt: "2023-09-05" },
