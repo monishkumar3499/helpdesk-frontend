@@ -13,6 +13,7 @@ export default function HomePage() {
       >
         Go to Employee Dashboard
       </Link>
+      <Link href = "/HR"> Go to Hr Dashboard</Link>
     </div>
   )
 }
