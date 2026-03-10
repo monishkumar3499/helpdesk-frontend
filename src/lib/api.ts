@@ -1,3 +1,5 @@
+// lib/api.ts
+
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
 export interface ApiErrorResponse {
@@ -85,7 +87,7 @@ export async function apiFetch(
 
       try {
         errorData = await response.json();
-      } catch {}
+      } catch { }
 
       throw new ApiError(
         response.status,

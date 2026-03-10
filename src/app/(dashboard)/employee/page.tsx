@@ -77,8 +77,8 @@ export default function ReportsPage() {
 
     try {
 
-      const data: Ticket[] = await apiFetch("/tickets/mine")
-      setTickets(data)
+      const res = await apiFetch("/tickets/mine")
+      setTickets(res.data)
 
     } catch (err) {
 

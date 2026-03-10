@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button"
 type Ticket = {
   id: string
   title: string
+  summary?: string // Added for completeness, if needed
   status: "OPEN" | "IN_PROGRESS" | "RESOLVED"
   priority: "LOW" | "HIGH" | "CRITICAL"
   createdAt: string
@@ -37,7 +38,15 @@ export default function CalendarPage() {
 
   useEffect(() => {
     apiFetch("/tickets?department=HR")
-      .then(setTickets)
+      .then((response) => {
+        // Ensure the fetched data is an array
+        if (Array.isArray(response.data)) {
+          setTickets(response.data);
+        } else {
+          console.error("Fetched data is not an array:", response.data);
+          setTickets([]);
+        }
+      })
       .catch(() => {
         // Mock data fallback
         const mock: Ticket[] = [
@@ -45,10 +54,10 @@ export default function CalendarPage() {
           { id: "2", title: "Payroll Discrepancy", status: "IN_PROGRESS", priority: "CRITICAL", createdAt: new Date(Date.now() - 86400000).toISOString(), createdBy: { name: "Priya Nair" } },
           { id: "3", title: "Onboarding Documents", status: "RESOLVED", priority: "LOW", createdAt: new Date(Date.now() - 2 * 86400000).toISOString(), createdBy: { name: "Rohan Mehta" } },
           { id: "4", title: "Benefits Enrollment", status: "OPEN", priority: "HIGH", createdAt: new Date(Date.now() - 3 * 86400000).toISOString(), createdBy: { name: "Sneha Pillai" } },
-        ]
-        setTickets(mock)
-      })
-  }, [])
+        ];
+        setTickets(mock);
+      });
+  }, []);
 
   // Build calendar grid
   const firstDay = new Date(currentYear, currentMonth, 1).getDay()
@@ -71,6 +80,7 @@ export default function CalendarPage() {
     else setCurrentMonth(m => m - 1)
     setSelectedDay(null)
   }
+  
   const nextMonth = () => {
     if (currentMonth === 11) { setCurrentMonth(0); setCurrentYear(y => y + 1) }
     else setCurrentMonth(m => m + 1)
@@ -87,7 +97,6 @@ export default function CalendarPage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Calendar */}
         <Card className="lg:col-span-2">
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
@@ -105,13 +114,13 @@ export default function CalendarPage() {
             </div>
           </CardHeader>
           <CardContent>
-            {/* Day headers */}
+            {/* Day heading */}
             <div className="grid grid-cols-7 mb-2">
               {DAYS.map((d) => (
                 <div key={d} className="text-center text-xs font-semibold text-slate-400 py-1">{d}</div>
               ))}
             </div>
-            {/* Cells */}
+            {/* Calendar cells */}
             <div className="grid grid-cols-7 gap-1">
               {cells.map((day, idx) => {
                 if (!day) return <div key={`empty-${idx}`} />
@@ -134,10 +143,7 @@ export default function CalendarPage() {
                     {dayTickets.length > 0 && (
                       <div className="flex flex-wrap gap-0.5 mt-1">
                         {dayTickets.slice(0, 3).map((t) => (
-                          <span
-                            key={t.id}
-                            className={`h-1.5 w-1.5 rounded-full ${priorityColor[t.priority]}`}
-                          />
+                          <span key={t.id} className={`h-1.5 w-1.5 rounded-full ${priorityColor[t.priority]}`} />
                         ))}
                         {dayTickets.length > 3 && (
                           <span className={`text-[10px] ${isSelected ? "text-slate-300" : "text-slate-400"}`}>+{dayTickets.length - 3}</span>
@@ -149,7 +155,7 @@ export default function CalendarPage() {
               })}
             </div>
 
-            {/* Legend */}
+            {/* Legend column */}
             <div className="flex gap-4 mt-4 pt-4 border-t">
               {Object.entries(priorityColor).map(([p, c]) => (
                 <div key={p} className="flex items-center gap-1.5 text-xs text-slate-500">
@@ -166,9 +172,7 @@ export default function CalendarPage() {
           <CardHeader className="pb-3">
             <CardTitle className="text-base flex items-center gap-2">
               <CalendarDays className="h-4 w-4 text-slate-500" />
-              {selectedDay
-                ? `${MONTHS[currentMonth]} ${selectedDay}`
-                : "Select a day"}
+              {selectedDay ? `${MONTHS[currentMonth]} ${selectedDay}` : "Select a day"}
             </CardTitle>
           </CardHeader>
           <CardContent>

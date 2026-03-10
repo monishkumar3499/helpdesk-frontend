@@ -75,6 +75,12 @@ export default function LoginPage() {
       // Save token + user
       login(data.access_token, data.user)
 
+      // Redirect immediately based on role
+      const dest = ['HR', 'IT_ADMIN', 'IT_SUPPORT', 'ADMIN'].includes(data.user.role)
+        ? '/HR'
+        : '/employee'
+      router.replace(dest)
+
     } catch (err) {
 
       let errorMessage = "Unable to sign in"

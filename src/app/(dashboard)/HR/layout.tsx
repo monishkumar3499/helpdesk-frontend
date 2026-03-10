@@ -12,10 +12,14 @@ export default function HrLayout({ children }: { children: ReactNode }) {
   const [sessionTime, setSessionTime] = useState(0)
 
   useEffect(() => {
-    if (!loading && !isAuthenticated) {
-      router.push("/login")
+    if (!loading) {
+      if (!isAuthenticated || !user) {
+        router.push("/login")
+      } else if (!["HR", "IT_ADMIN", "IT_SUPPORT"].includes(user.role)) {
+        router.push("/employee")
+      }
     }
-  }, [loading, isAuthenticated, router])
+  }, [loading, isAuthenticated, user, router])
 
   useEffect(() => {
     // Start session timer
@@ -52,22 +56,22 @@ export default function HrLayout({ children }: { children: ReactNode }) {
         <nav className="space-y-2 flex-1">
           <Link href="/HR">
             <Button variant="ghost" className="w-full justify-start text-white hover:bg-slate-700">
-               Dashboard
+              Dashboard
             </Button>
           </Link>
           <Link href="/HR/Tickets">
             <Button variant="ghost" className="w-full justify-start text-white hover:bg-slate-700">
-               Tickets
+              Tickets
             </Button>
           </Link>
           <Link href="/HR/employees">
             <Button variant="ghost" className="w-full justify-start text-white hover:bg-slate-700">
-               Employees
+              Employees
             </Button>
           </Link>
           <Link href="/HR/Calendar">
             <Button variant="ghost" className="w-full justify-start text-white hover:bg-slate-700">
-               Calendar
+              Calendar
             </Button>
           </Link>
           <Link href="/HR/SLA">
@@ -75,11 +79,11 @@ export default function HrLayout({ children }: { children: ReactNode }) {
               SLA
             </Button>
           </Link>
-          <Link href="/HR/Reports">
+          {/* <Link href="/HR/Reports">
             <Button variant="ghost" className="w-full justify-start text-white hover:bg-slate-700">
               Reports
             </Button>
-          </Link>
+          </Link> */}
         </nav>
 
         {/* Session info at bottom of sidebar */}
@@ -111,7 +115,7 @@ export default function HrLayout({ children }: { children: ReactNode }) {
           </div>
         </header>
 
-        {/* Page Content */}
+        {/* Page Content call*/}
         <main className="flex-1 p-6 bg-slate-50 overflow-auto">
           {children}
         </main>

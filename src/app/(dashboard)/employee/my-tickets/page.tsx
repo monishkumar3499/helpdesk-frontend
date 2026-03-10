@@ -57,8 +57,8 @@ export default function MyTicketsPage() {
 
     try{
 
-      const data = await apiFetch("/tickets/mine")
-      setTickets(data)
+      const res = await apiFetch("/tickets/mine")
+      setTickets(res.data)
 
     }catch(err){
 

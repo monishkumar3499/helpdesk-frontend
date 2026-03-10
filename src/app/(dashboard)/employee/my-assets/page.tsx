@@ -32,8 +32,8 @@ export default function MyAssetsPage() {
 
   async function fetchAssets() {
     try {
-      const data = await apiFetch("/assets/mine")
-      setAssets(data)
+      const res = await apiFetch("/assets/mine")
+      setAssets(res.data)
     } catch (err) {
       console.error("Failed to fetch assets:", err)
     } finally {

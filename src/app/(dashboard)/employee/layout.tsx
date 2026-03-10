@@ -6,17 +6,21 @@ import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { useAuth } from "@/lib/auth-context"
 
-export default function HrLayout({ children }: { children: ReactNode }) {
+export default function EmployeeLayout({ children }: { children: ReactNode }) {
   const router = useRouter()
   const { user, isAuthenticated, loading, logout } = useAuth()
   const [sessionTime, setSessionTime] = useState(0)
   const [currentDate, setCurrentDate] = useState("")
 
   useEffect(() => {
-    if (!loading && !isAuthenticated) {
-      router.push("/login")
+    if (!loading) {
+      if (!isAuthenticated || !user) {
+        router.push("/login")
+      } else if (user.role !== "EMPLOYEE") {
+        router.push("/HR")
+      }
     }
-  }, [loading, isAuthenticated, router])
+  }, [loading, isAuthenticated, user, router])
 
   useEffect(() => {
     setCurrentDate(
