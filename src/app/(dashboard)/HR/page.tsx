@@ -85,7 +85,7 @@ export default function ReportsPage() {
     apiFetch("/tickets?department=HR")
       .then((data) => {
         setTickets(data)
-       
+
         localStorage.setItem("hr_tickets", JSON.stringify(
           data.map((t: any) => ({
             ...t,

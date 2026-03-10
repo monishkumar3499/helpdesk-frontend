@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import { apiFetch } from "@/lib/api"
 import { Card, CardContent } from "@/components/ui/card"
 
-// Updated Type to match actual API response
+//API RESPONSE DATA
 type Ticket = {
   id: string
   title: string
@@ -57,7 +57,7 @@ function getSLAStatus(hoursElapsed: number, hoursLimit: number, ticketStatus: st
 function getHoursElapsed(createdAt: string, currentTime: number): number {
   const created = new Date(createdAt).getTime()
   const elapsedMs = currentTime - created
-  // Prevent negative time
+  // Preventing negative time
   const safeElapsed = Math.max(0, elapsedMs)
   return Math.round(safeElapsed / (1000 * 60 * 60))
 }
@@ -77,7 +77,7 @@ export default function SLAPage() {
   const [usingMock, setUsingMock] = useState(false)
   const [currentTime, setCurrentTime] = useState(Date.now())
 
-  // Live Timer Effect (Stopwatch updates every second)
+  // Live Timerr component code used
   useEffect(() => {
     const timer = setInterval(() => {
       setCurrentTime(Date.now())
@@ -88,9 +88,9 @@ export default function SLAPage() {
   useEffect(() => {
     apiFetch("/tickets?department=HR")
       .then((response) => {
-        // Handle API response structure - data is inside response.data
+        // handling teh api data response.data
         const tickets: Ticket[] = response.data || []
-        
+
         const items: SLAItem[] = tickets.map(t => {
           const hoursLimit = SLA_LIMITS[t.priority]
           const hoursElapsed = getHoursElapsed(t.createdAt, currentTime)
@@ -196,7 +196,7 @@ export default function SLAPage() {
                       <div className={`w-2.5 h-2.5 rounded-full mt-1 shrink-0 ${config.dot}`} />
                       <div>
                         <p className="font-semibold text-slate-800">{sla.issue}</p>
-                        
+
                         {/* User Details Section */}
                         <p className="text-xs text-slate-500 mt-0.5">
                           Raised by <span className="font-medium text-slate-700">{sla.createdBy}</span> ·

@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button"
 type Ticket = {
   id: string
   title: string
-  summary?: string // Added for completeness, if needed
+  summary?: string
   status: "OPEN" | "IN_PROGRESS" | "RESOLVED"
   priority: "LOW" | "HIGH" | "CRITICAL"
   createdAt: string
@@ -39,7 +39,7 @@ export default function CalendarPage() {
   useEffect(() => {
     apiFetch("/tickets?department=HR")
       .then((response) => {
-      
+
         if (Array.isArray(response.data)) {
           setTickets(response.data);
         } else {
@@ -48,7 +48,7 @@ export default function CalendarPage() {
         }
       })
       .catch(() => {
-        // Mock data 
+        // Mock data
         const mock: Ticket[] = [
           { id: "1", title: "Leave Request - Sick", status: "OPEN", priority: "HIGH", createdAt: new Date().toISOString(), createdBy: { name: "Aarav Sharma" } },
           { id: "2", title: "Payroll Discrepancy", status: "IN_PROGRESS", priority: "CRITICAL", createdAt: new Date(Date.now() - 86400000).toISOString(), createdBy: { name: "Priya Nair" } },
@@ -80,7 +80,7 @@ export default function CalendarPage() {
     else setCurrentMonth(m => m - 1)
     setSelectedDay(null)
   }
-  
+
   const nextMonth = () => {
     if (currentMonth === 11) { setCurrentMonth(0); setCurrentYear(y => y + 1) }
     else setCurrentMonth(m => m + 1)

@@ -1,13 +1,11 @@
 "use client"
-import Link from "next/link"
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
-import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuCheckboxItem } from "@/components/ui/dropdown-menu"
-import { apiFetch } from "@/lib/api" // Adjust the path to where your apiFetch is located
+import { apiFetch } from "@/lib/api"
 
 export default function HomePage() {
   const router = useRouter()
@@ -16,14 +14,21 @@ export default function HomePage() {
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
   const [selectedRole, setSelectedRole] = useState("")
-  const [Showtext, setShowtext] = useState(false)
+  const [dropdownOpen, setDropdownOpen] = useState(false)
 
   useEffect(() => {
     const user = localStorage.getItem("user")
     if (user) {
-      const parsed = JSON.parse(user)
-      if (parsed.role === "HR" || parsed.role === "ADMIN") router.push("/HR")
-      else router.push("/employee")
+      try {
+        const parsed = JSON.parse(user)
+        if (parsed.role === "HR" || parsed.role === "IT_ADMIN" || parsed.role === "IT_SUPPORT") {
+          router.push("/HR")
+        } else {
+          router.push("/employee")
+        }
+      } catch {
+        localStorage.removeItem("user")
+      }
     }
   }, [])
 
@@ -32,40 +37,47 @@ export default function HomePage() {
     setError("")
 
     try {
-      const response = await apiFetch("/auth/login", { // Update to the correct login endpoint
+      const response = await apiFetch("/auth/login", {
         method: "POST",
-        body: JSON.stringify({
-          email,
-          password,
-          role: selectedRole, // Optional: Send role if needed
-        }),
-      });
+        body: JSON.stringify({ email, password }),
+      })
 
-      // Extract token and user information
-      const { access_token, user } = response;
+      const { access_token, user } = response
 
-      // Save to localStorage
-      localStorage.setItem("token", access_token);
+      if (!access_token || !user) {
+        setError("Unexpected response from server.")
+        return
+      }
+
+      //selected role can login
+      if (user.role !== selectedRole) {
+        setError(`Access denied! This login is for "${selectedRole}" only.`)
+        return
+      }
+
+      localStorage.setItem("token", access_token)
       localStorage.setItem("user", JSON.stringify({
         email: user.email,
         name: user.name,
         role: user.role,
         id: user.id,
         loginTime: new Date().toISOString(),
-      }));
+      }))
 
-      // Redirect based on role
-      if (user.role === "HR" || user.role === "ADMIN") {
-        router.push("/HR");
+      if (user.role === "HR" || user.role === "IT_ADMIN" || user.role === "IT_SUPPORT") {
+        router.push("/HR")
       } else {
-        router.push("/employee");
+        router.push("/employee")
       }
-    } catch (error) {
-      setError("Invalid email, password, or role");
+
+    } catch (err: any) {
+      setError("Invalid email or password.")
     } finally {
       setLoading(false)
     }
   }
+
+  const roles = ["HR", "IT_ADMIN", "IT_SUPPORT", "EMPLOYEE"]
 
   return (
     <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
@@ -79,38 +91,59 @@ export default function HomePage() {
         </CardHeader>
 
         <CardContent className="space-y-4 pt-2">
-          <center>
-            <DropdownMenu>
-              <DropdownMenuTrigger>
-                <Button className="w-full">Select Role</Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent onClick={() => setShowtext(true)}>
-                {["HR", "ADMIN", "EMPLOYEE"].map(role => (
-                  <DropdownMenuCheckboxItem
-                    key={role}
-                    checked={selectedRole === role}
-                    onCheckedChange={() => setSelectedRole(role)}> 
-                    {role}
-                  </DropdownMenuCheckboxItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
-            {Showtext && (
-              <p className="text-sm">You Selected: {selectedRole}</p>
-            )}
-          </center>
 
+          {/* Role Dropdown */}
+          <div className="space-y-2">
+            <Label>Role</Label>
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setDropdownOpen(!dropdownOpen)}
+                className="w-full flex items-center justify-between border border-slate-200 rounded-md px-3 py-2 text-sm bg-white hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-400"
+              >
+                <span className={selectedRole ? "text-slate-800" : "text-slate-400"}>
+                  {selectedRole || "Select your role"}
+                </span>
+                <span className="text-slate-400">{dropdownOpen ? "▴" : "▾"}</span>
+              </button>
+
+              {dropdownOpen && (
+                <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-md shadow-lg z-50">
+                  {roles.map(role => (
+                    <button
+                      key={role}
+                      type="button"
+                      onClick={() => {
+                        setSelectedRole(role)
+                        setDropdownOpen(false)
+                        setError("")
+                      }}
+                      className={`w-full text-left px-3 py-2 text-sm hover:bg-slate-50 flex items-center justify-between ${
+                        selectedRole === role ? "text-slate-800 font-semibold bg-slate-50" : "text-slate-600"
+                      }`}
+                    >
+                      {role}
+                      {selectedRole === role && <span className="text-green-500 text-xs">✓</span>}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Email */}
           <div className="space-y-2">
             <Label htmlFor="email">Email</Label>
             <Input
               id="email"
               type="email"
-              placeholder="hr@company.com"
+              placeholder="Enter your email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
             />
           </div>
 
+          {/* Password */}
           <div className="space-y-2">
             <Label htmlFor="password">Password</Label>
             <Input
@@ -137,11 +170,6 @@ export default function HomePage() {
             {loading ? "Signing in..." : "Sign In →"}
           </Button>
 
-          {/* Test credentials hint */}
-          <div className="bg-blue-50 rounded-lg p-3 border border-blue-100">
-            <p className="text-xs text-blue-700 font-medium mb-1">Credentials for testing:</p>
-            <p className="text-xs text-blue-600">HR: avi@company.com | avi@1234</p>
-          </div>
         </CardContent>
       </Card>
     </div>
