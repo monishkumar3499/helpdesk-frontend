@@ -109,7 +109,7 @@ export default function ReportsPage() {
         <h2 className="text-2xl font-bold text-slate-800">Reports & Analytics</h2>
         <p className="text-sm text-slate-500 mt-1">
           {new Date().toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
-          {usingMock && <span className="ml-2 text-orange-500">(Dummy data (Testing) backend offline)</span>}
+          {usingMock && <span className="ml-2 text-orange-500"></span>}
         </p>
       </div>
     <div className="space-y-6">

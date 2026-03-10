@@ -107,12 +107,12 @@ export default function EmployeesPage() {
               className="cursor-pointer hover:shadow-md hover:-translate-y-0.5 transition-all duration-200"
               onClick={() => setSelected(emp)}>
               <CardContent className="p-4 flex items-center gap-4">
-                <Avatar className="h-12 w-12">
-                  <AvatarImage src={`https://i.pravatar.cc/150?u=${emp.email}`} />
+                <Avatar className="h-10 w-12">
                   <AvatarFallback className="bg-slate-700 text-white font-semibold text-sm">
                     {initials(emp.name)}
                   </AvatarFallback>
                 </Avatar>
+                
                 <div className="flex-1 min-w-0">
                   <p className="font-semibold text-slate-800 truncate">{emp.name}</p>
                   <p className="text-xs text-slate-500 truncate">{emp.email}</p>
@@ -136,8 +136,9 @@ export default function EmployeesPage() {
           <DialogContent className="max-w-md">
             <DialogHeader><DialogTitle>Employee Profile</DialogTitle></DialogHeader>
             <div className="flex flex-col items-center gap-3 pt-2">
-              <Avatar className="h-20 w-20">
-                <AvatarImage src={`https://i.pravatar.cc/150?u=${selected.email}`} />
+              <Avatar className="h-25 w-25">
+                {/* <AvatarImage src={`https://i.pravatar.cc/150?u=${selected.email}`} /> */}
+                {/* {initials(selected.name)} */}
                 <AvatarFallback className="bg-slate-700 text-white text-xl font-bold">
                   {initials(selected.name)}
                 </AvatarFallback>

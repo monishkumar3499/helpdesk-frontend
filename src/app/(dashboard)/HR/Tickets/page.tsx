@@ -17,21 +17,17 @@ type Ticket = {
   employeeName?: string
   employeeId?: string
   priority: string
-  description?: string
   status: string
   department: string
   hrComment?: string
   rejectedReason?: string
+  createdAt?:string 
   createdBy?: { name: string; id: string }
 }
 
 const MOCK_TICKETS: Ticket[] = [
   { id: "1", title: "Leave Request", summary: "I need 3 days sick leave due to fever", category: "Leave Request", employeeName: "Aarav Kumar", employeeId: "EMP001", priority: "HIGH", status: "OPEN", department: "HR" },
-  { id: "2", title: "Payroll Issue", summary: "My salary was incorrect this month", category: "Payroll Issue", employeeName: "Data Kumar", employeeId: "EMP002", priority: "CRITICAL", status: "IN_PROGRESS", department: "HR" },
-  { id: "3", title: "Onboarding", summary: "Need help with joining documents", category: "Onboarding", employeeName: "Rohit Sharma", employeeId: "EMP003", priority: "LOW", status: "RESOLVED", department: "HR"},
-  { id: "4", title: "Leave Request", summary: "Requesting 5 days annual leave", category: "Leave Request", employeeName: "Sneha Pillai", employeeId: "EMP004", priority: "HIGH", status: "OPEN", department: "HR" },
-  { id: "5", title: "Payroll Issue", summary: "PF deduction seems wrong", category: "Payroll Issue", employeeName: "Kiran Raj", employeeId: "EMP005", priority: "CRITICAL", status: "OPEN", department: "HR" },
-  { id: "6", title: "Onboarding", summary: "ID card not received yet", category: "Onboarding", employeeName: "Divya Krishnan", employeeId: "EMP006", priority: "LOW", status: "IN_PROGRESS", department: "HR"},
+  // Add more mock tickets as necessary...
 ]
 
 const priorityColor: Record<string, string> = {
@@ -58,27 +54,30 @@ export default function HrTicketsPage() {
   const [usingMock, setUsingMock] = useState(false)
 
   useEffect(() => {
-    apiFetch("/tickets?department=HR")
-      .then((data) => {
-        // Normalize backend data to match our Ticket type
-        const normalized = data.map((t: any) => ({
+    const fetchTickets = async () => {
+      setLoading(true)
+      try {
+        const response = await apiFetch("/tickets?department=HR")
+        const normalized = response.data.map((t: any) => ({
           ...t,
           category: t.title,
           employeeName: t.createdBy?.name || "Unknown",
           employeeId: t.createdBy?.id?.slice(0, 8).toUpperCase() || "N/A",
-          summary: t.summary || t.description || "",
+          summary: t.summary || "",
         }))
         setTickets(normalized)
         setUsingMock(false)
-      })
-      .catch(() => {
+      } catch (error) {
+        console.error("Error fetching tickets:", error)
         setTickets(MOCK_TICKETS)
         setUsingMock(true)
-      })
-      .finally(() => setLoading(false))
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchTickets()
   }, [])
 
-  // to save to local storage whenever tickets change (for dashboard + reports sync)
   useEffect(() => {
     if (tickets.length > 0) {
       localStorage.setItem("hr_tickets", JSON.stringify(tickets))
@@ -98,13 +97,16 @@ export default function HrTicketsPage() {
           body: JSON.stringify({ status: "RESOLVED" }),
         })
       }
-    } catch {}
-    setTickets(prev => prev.map(t =>
-      t.id === selected.id
-        ? { ...t, status: "RESOLVED", hrComment: hrComment || "Ticket resolved by HR." }
-        : t
-    ))
-    closeModal()
+      setTickets(prev => prev.map(t => 
+        t.id === selected.id 
+          ? { ...t, status: "RESOLVED", hrComment: hrComment || "Ticket resolved by HR." } 
+          : t 
+      ))
+    } catch (error) {
+      console.error("Error resolving ticket:", error)
+    } finally {
+      closeModal()
+    }
   }
 
   async function handleInProgress() {
@@ -116,13 +118,16 @@ export default function HrTicketsPage() {
           body: JSON.stringify({ status: "IN_PROGRESS" }),
         })
       }
-    } catch {}
-    setTickets(prev => prev.map(t =>
-      t.id === selected.id
-        ? { ...t, status: "IN_PROGRESS", hrComment: hrComment || undefined }
-        : t
-    ))
-    closeModal()
+      setTickets(prev => prev.map(t => 
+        t.id === selected.id 
+          ? { ...t, status: "IN_PROGRESS", hrComment: hrComment || undefined } 
+          : t 
+      ))
+    } catch (error) {
+      console.error("Error marking ticket as in progress:", error)
+    } finally {
+      closeModal()
+    }
   }
 
   async function handleReject() {
@@ -134,13 +139,16 @@ export default function HrTicketsPage() {
           body: JSON.stringify({ status: "REJECTED" }),
         })
       }
-    } catch {}
-    setTickets(prev => prev.map(t =>
-      t.id === selected.id
-        ? { ...t, status: "REJECTED", rejectedReason: rejectReason, hrComment: rejectReason }
-        : t
-    ))
-    closeModal()
+      setTickets(prev => prev.map(t => 
+        t.id === selected.id 
+          ? { ...t, status: "REJECTED", rejectedReason: rejectReason, hrComment: rejectReason } 
+          : t 
+      ))
+    } catch (error) {
+      console.error("Error rejecting ticket:", error)
+    } finally {
+      closeModal()
+    }
   }
 
   function openTicket(ticket: Ticket) {
@@ -164,16 +172,12 @@ export default function HrTicketsPage() {
   )
 
   return (
+         
     <div className="space-y-6">
+      
       {/* Header */}
       <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold text-slate-800">HR Tickets</h2>
-          <p className="text-sm text-slate-500 mt-1">
-            {filtered.length} tickets · {new Date().toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
-            {usingMock && <span className="ml-2 text-orange-500">(Demo data — backend offline)</span>}
-          </p>
-        </div>
+        <h2 className="text-2xl font-bold text-slate-800">HR Tickets</h2>
         <Select onValueChange={setCategory} defaultValue="All">
           <SelectTrigger className="w-48">
             <SelectValue placeholder="Filter" />
@@ -188,12 +192,13 @@ export default function HrTicketsPage() {
       </div>
 
       {/* Stats */}
+
       <div className="grid grid-cols-4 gap-4">
         {[
           { label: "Open", count: tickets.filter(t => t.status === "OPEN").length, color: "border-l-blue-500" },
           { label: "In Progress", count: tickets.filter(t => t.status === "IN_PROGRESS").length, color: "border-l-yellow-500" },
           { label: "Resolved", count: tickets.filter(t => t.status === "RESOLVED").length, color: "border-l-green-500" },
-          { label: "Rejected", count: tickets.filter(t => t.status === "REJECTED").length, color: "border-l-red-500" },
+          // { label: "Rejected", count: tickets.filter(t => t.status === "REJECTED").length, color: "border-l-red-500" },
         ].map(s => (
           <Card key={s.label} className={`border-l-4 ${s.color}`}>
             <CardContent className="p-4 flex items-center justify-between">
@@ -203,7 +208,6 @@ export default function HrTicketsPage() {
           </Card>
         ))}
       </div>
-
       {/* Ticket Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {filtered.map(ticket => (
@@ -236,7 +240,7 @@ export default function HrTicketsPage() {
                   {ticket.priority}
                 </span>
                 <span className="text-xs text-slate-400">
-                  {new Date().toLocaleDateString("en-IN", { day: "numeric", month: "short" })}
+                  {new Date(ticket.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short",year:"numeric" })}
                 </span>
               </div>
               {ticket.hrComment && (
@@ -324,7 +328,7 @@ export default function HrTicketsPage() {
                 </div>
               )}
 
-              {selected.hrComment && (selected.status === "RESOLVED" || selected.status === "REJECTED" || selected.status === "IN_PROGRESS") && (
+              {selected.hrComment && (["RESOLVED", "REJECTED", "IN_PROGRESS"].includes(selected.status)) && (
                 <div className={`text-sm p-3 rounded-lg border-l-2 ${
                   selected.status === "REJECTED" ? "bg-red-50 border-red-400 text-red-700" : "bg-green-50 border-green-400 text-green-700"
                 }`}>
@@ -338,7 +342,7 @@ export default function HrTicketsPage() {
                   <Button variant="outline" className="flex-1 text-yellow-600 border-yellow-200 hover:bg-yellow-50" onClick={handleInProgress}>
                     In Progress
                   </Button>
-                  {!showRejectBox ? (
+                  {/* {!showRejectBox ? (
                     <Button variant="outline" className="flex-1 text-red-600 border-red-200 hover:bg-red-50" onClick={() => setShowRejectBox(true)}>
                       Reject
                     </Button>
@@ -346,7 +350,7 @@ export default function HrTicketsPage() {
                     <Button variant="destructive" className="flex-1" onClick={handleReject} disabled={!rejectReason.trim()}>
                       Confirm Reject
                     </Button>
-                  )}
+                  )} */}
                   <Button className="flex-1 bg-green-600 hover:bg-green-700" onClick={handleResolve}>
                     Resolve ✓
                   </Button>
