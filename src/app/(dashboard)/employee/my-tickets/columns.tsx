@@ -12,6 +12,7 @@ export type Ticket = {
   priority: "CRITICAL" | "HIGH" | "LOW"
   department: "HR" | "IT"
   createdAt: string
+  createdBy?: { name: string }
   assignedToId?: string | null
 }
 

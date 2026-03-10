@@ -1,10 +1,10 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
+import { apiFetch, toArrayResponse } from "@/lib/api"
 import { TicketCalendar, type TicketCalendarItem } from "@/components/shared/ticket-calendar"
-import { getHrTicketsForCurrentUser } from "@/lib/hrTickets"
 
-type HrCalendarTicket = {
+type EmployeeCalendarTicket = {
   id: string
   title: string
   status: "OPEN" | "IN_PROGRESS" | "RESOLVED" | "REJECTED"
@@ -13,13 +13,15 @@ type HrCalendarTicket = {
   createdBy?: { name: string }
 }
 
-export default function CalendarPage() {
-  const [tickets, setTickets] = useState<HrCalendarTicket[]>([])
+export default function EmployeeCalendarPage() {
+  const [tickets, setTickets] = useState<EmployeeCalendarTicket[]>([])
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    getHrTicketsForCurrentUser<HrCalendarTicket>()
-      .then((response) => setTickets(response))
+    apiFetch("/tickets/mine")
+      .then((data) => setTickets(toArrayResponse<EmployeeCalendarTicket>(data)))
       .catch(() => setTickets([]))
+      .finally(() => setLoading(false))
   }, [])
 
   const items = useMemo<TicketCalendarItem[]>(
@@ -34,12 +36,17 @@ export default function CalendarPage() {
     [tickets],
   )
 
+  if (loading) {
+    return <p className="p-6 text-sm text-gray-500">Loading calendar...</p>
+  }
+
   return (
     <TicketCalendar
       title="Calendar"
-      subtitle="HR ticket activity overview"
+      subtitle="My ticket activity overview"
       tickets={items}
       emptyDayText="No tickets on this day"
+      pageSize={5}
     />
   )
 }

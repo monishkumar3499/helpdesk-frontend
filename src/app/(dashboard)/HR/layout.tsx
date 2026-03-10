@@ -14,20 +14,13 @@ export default function HrLayout({ children }: { children: ReactNode }) {
   useEffect(() => {
     const user = getStoredUser()
     const token = getAccessToken()
-
-    if (!user || !token) {
+    if (user?.email && token && user.role === "HR") {
+      setEmail(user.email)
+    } else {
       clearAuthSession()
       router.push("/")
       return
     }
-
-    if (user.role !== "HR") {
-      clearAuthSession()
-      router.push("/")
-      return
-    }
-
-    setEmail(user.email || "")
 
     // Start session timer
     const timer = setInterval(() => {
@@ -58,36 +51,36 @@ export default function HrLayout({ children }: { children: ReactNode }) {
         <h2 className="text-xl font-bold mb-6">HR Dashboard</h2>
 
         <nav className="space-y-2 flex-1">
-          <Link href="/HR">
-            <Button variant="ghost" className="w-full justify-start text-white hover:bg-slate-700">
+          <Button asChild variant="ghost" className="w-full justify-start text-white hover:bg-slate-700">
+            <Link href="/HR">
                Dashboard
-            </Button>
-          </Link>
-          <Link href="/HR/Tickets">
-            <Button variant="ghost" className="w-full justify-start text-white hover:bg-slate-700">
+            </Link>
+          </Button>
+          <Button asChild variant="ghost" className="w-full justify-start text-white hover:bg-slate-700">
+            <Link href="/HR/Tickets">
                Tickets
-            </Button>
-          </Link>
-          <Link href="/HR/employees">
-            <Button variant="ghost" className="w-full justify-start text-white hover:bg-slate-700">
+            </Link>
+          </Button>
+          <Button asChild variant="ghost" className="w-full justify-start text-white hover:bg-slate-700">
+            <Link href="/HR/employees">
                Employees
-            </Button>
-          </Link>
-          <Link href="/HR/Calendar">
-            <Button variant="ghost" className="w-full justify-start text-white hover:bg-slate-700">
+            </Link>
+          </Button>
+          <Button asChild variant="ghost" className="w-full justify-start text-white hover:bg-slate-700">
+            <Link href="/HR/Calendar">
                Calendar
-            </Button>
-          </Link>
-          <Link href="/HR/SLA">
-            <Button variant="ghost" className="w-full justify-start text-white hover:bg-slate-700">
+            </Link>
+          </Button>
+          <Button asChild variant="ghost" className="w-full justify-start text-white hover:bg-slate-700">
+            <Link href="/HR/SLA">
               SLA
-            </Button>
-          </Link>
-          <Link href="/HR/Reports">
+            </Link>
+          </Button>
+          {/* <Link href="/HR/Reports">
             <Button variant="ghost" className="w-full justify-start text-white hover:bg-slate-700">
               Reports
             </Button>
-          </Link>
+          </Link> */}
         </nav>
 
         {/* Session info at bottom of sidebar */}
@@ -119,7 +112,7 @@ export default function HrLayout({ children }: { children: ReactNode }) {
           </div>
         </header>
 
-        {/* Page Content */}
+        {/* Page Content call*/}
         <main className="flex-1 p-6 bg-slate-50 overflow-auto">
           {children}
         </main>

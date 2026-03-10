@@ -443,6 +443,19 @@ type ApiFetchConfig = {
   forceBackend?: boolean;
 };
 
+export function toArrayResponse<T>(payload: unknown): T[] {
+  if (Array.isArray(payload)) return payload as T[];
+  if (
+    payload
+    && typeof payload === "object"
+    && "data" in payload
+    && Array.isArray((payload as { data?: unknown }).data)
+  ) {
+    return (payload as { data: T[] }).data;
+  }
+  return [];
+}
+
 export async function apiFetch(
   endpoint: string,
   options?: RequestInit,

@@ -6,7 +6,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Search, Mail, ShieldCheck } from "lucide-react"
 
 type Role = "EMPLOYEE" | "HR" | "IT_SUPPORT" | "IT_ADMIN"
@@ -19,11 +19,11 @@ const roleColors: Record<Role, string> = {
   EMPLOYEE: "bg-blue-100 text-blue-700 border-blue-200",
   HR: "bg-purple-100 text-purple-700 border-purple-200",
   IT_SUPPORT: "bg-emerald-100 text-emerald-700 border-emerald-200",
-  IT_ADMIN: "bg-teal-100 text-teal-700 border-teal-200",
+  IT_ADMIN: "bg-orange-100 text-orange-700 border-orange-200",
 }
 
 const MOCK: Employee[] = [
-  { id: "1", name: "Aarav Sharma", email: "aarav@company.com", role: "EMPLOYEE", isActive: true, createdAt: "2024-01-15" },
+  { id: "1", name: "Arman singh", email: "aarav@company.com", role: "EMPLOYEE", isActive: true, createdAt: "2024-01-15" },
   { id: "2", name: "Priya Nair", email: "priya@company.com", role: "HR", isActive: true, createdAt: "2023-11-20" },
   { id: "3", name: "Rohan Mehta", email: "rohan@company.com", role: "IT_SUPPORT", isActive: true, createdAt: "2024-02-10" },
   { id: "4", name: "Sneha Pillai", email: "sneha@company.com", role: "EMPLOYEE", isActive: false, createdAt: "2023-09-05" },
@@ -107,12 +107,12 @@ export default function EmployeesPage() {
               className="cursor-pointer hover:shadow-md hover:-translate-y-0.5 transition-all duration-200"
               onClick={() => setSelected(emp)}>
               <CardContent className="p-4 flex items-center gap-4">
-                <Avatar className="h-12 w-12">
-                  <AvatarImage src={`https://i.pravatar.cc/150?u=${emp.email}`} />
+                <Avatar className="h-10 w-12">
                   <AvatarFallback className="bg-slate-700 text-white font-semibold text-sm">
                     {initials(emp.name)}
                   </AvatarFallback>
                 </Avatar>
+                
                 <div className="flex-1 min-w-0">
                   <p className="font-semibold text-slate-800 truncate">{emp.name}</p>
                   <p className="text-xs text-slate-500 truncate">{emp.email}</p>
@@ -134,10 +134,16 @@ export default function EmployeesPage() {
       <Dialog open={!!selected} onOpenChange={() => setSelected(null)}>
         {selected && (
           <DialogContent className="max-w-md">
-            <DialogHeader><DialogTitle>Employee Profile</DialogTitle></DialogHeader>
+            <DialogHeader>
+              <DialogTitle>Employee Profile</DialogTitle>
+              <DialogDescription>
+                View employee details and account status.
+              </DialogDescription>
+            </DialogHeader>
             <div className="flex flex-col items-center gap-3 pt-2">
-              <Avatar className="h-20 w-20">
-                <AvatarImage src={`https://i.pravatar.cc/150?u=${selected.email}`} />
+              <Avatar className="h-25 w-25">
+                {/* <AvatarImage src={`https://i.pravatar.cc/150?u=${selected.email}`} /> */}
+                {/* {initials(selected.name)} */}
                 <AvatarFallback className="bg-slate-700 text-white text-xl font-bold">
                   {initials(selected.name)}
                 </AvatarFallback>

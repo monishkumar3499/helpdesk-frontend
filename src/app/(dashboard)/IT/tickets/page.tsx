@@ -156,6 +156,7 @@ export default function ITTicketsPage() {
     const nextAssetIssue = {
       ...(selected.assetIssue || {}),
       assetId: selectedAssetId,
+      assetSerial: assignedAsset?.serialNumber || selected.assetIssue?.assetSerial || null,
       assetCategory: assignedCategory,
       assetClassification: assignedCategory,
     }
@@ -216,6 +217,9 @@ export default function ITTicketsPage() {
   }, [assets, selected])
 
   const selectedIssueType = selected ? resolveTicketIssueType(selected) : "GENERAL"
+  const selectedAssetSerial = selected?.assetIssue?.assetSerial
+    || selectedProblemAsset?.serialNumber
+    || "N/A"
 
   function getIssueTypeLabel(issueType: TicketIssueType) {
     if (issueType === "ASSET_REQUEST") return "Asset Request"
@@ -227,6 +231,15 @@ export default function ITTicketsPage() {
     if (issueType === "ASSET_REQUEST") return "border-emerald-300 bg-emerald-50/50 shadow-emerald-100"
     if (issueType === "ASSET_PROBLEM") return "border-amber-300 bg-amber-50/50 shadow-amber-100"
     return "border-slate-200 bg-white shadow-slate-100"
+  }
+
+  function resolveAssetSerialForTicket(ticket: ITTicket): string {
+    if (ticket.assetIssue?.assetSerial) return ticket.assetIssue.assetSerial
+    if (ticket.assetIssue?.assetId) {
+      const matched = assets.find((asset) => asset.id === ticket.assetIssue?.assetId)
+      if (matched?.serialNumber) return matched.serialNumber
+    }
+    return "N/A"
   }
 
   if (loading) {
@@ -289,6 +302,7 @@ export default function ITTicketsPage() {
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
         {visibleTickets.map((ticket) => {
           const issueType = resolveTicketIssueType(ticket)
+          const ticketAssetSerial = resolveAssetSerialForTicket(ticket)
           return (
           <Card
             key={ticket.id}
@@ -330,8 +344,8 @@ export default function ITTicketsPage() {
               )}
               {issueType === "ASSET_REQUEST" && (
                 <div className="space-y-1 rounded-md border border-emerald-200 bg-white px-2.5 py-2">
-                  <p className="text-[11px] text-slate-500">Request Name</p>
-                  <p className="text-xs font-semibold text-slate-700">{ticket.assetIssue?.requestedAssetName || "N/A"}</p>
+                  <p className="text-[11px] text-slate-500">Subject</p>
+                  <p className="text-xs font-semibold text-slate-700">{ticket.title || "N/A"}</p>
                   <div className="grid grid-cols-2 gap-2 text-[11px] text-slate-600">
                     <span>Category: {ticket.assetIssue?.assetCategory || "N/A"}</span>
                     <span>Class: {ticket.assetIssue?.assetClassification || "N/A"}</span>
@@ -341,14 +355,13 @@ export default function ITTicketsPage() {
               {issueType === "ASSET_PROBLEM" && (
                 <div className="space-y-1 rounded-md border border-amber-200 bg-white px-2.5 py-2">
                   <p className="text-[11px] inline-flex items-center gap-1 font-medium text-amber-700"><AlertTriangle className="h-3.5 w-3.5" />Asset Problem</p>
-                  <p className="text-[11px] text-slate-500">Request Name</p>
-                  <p className="text-xs font-semibold text-slate-700">{ticket.assetIssue?.requestedAssetName || "N/A"}</p>
+                  <p className="text-[11px] text-slate-500">Subject</p>
+                  <p className="text-xs font-semibold text-slate-700">{ticket.title || "N/A"}</p>
                   <div className="grid grid-cols-2 gap-2 text-[11px] text-slate-600">
                     <span>Category: {ticket.assetIssue?.assetCategory || "N/A"}</span>
                     <span>Class: {ticket.assetIssue?.assetClassification || "N/A"}</span>
                   </div>
-                  <p className="text-[11px] text-slate-600">Asset ID: {ticket.assetIssue?.assetId || "N/A"}</p>
-                  <p className="text-[11px] text-slate-600">Asset Serial: {ticket.assetIssue?.assetSerial || "N/A"}</p>
+                  <p className="text-[11px] text-slate-600">Asset Serial: {ticketAssetSerial}</p>
                 </div>
               )}
               <div className="flex items-center justify-between">
@@ -398,16 +411,14 @@ export default function ITTicketsPage() {
                 <div className="bg-emerald-50 rounded-lg border border-emerald-100 p-4 space-y-2">
                   <p className="text-xs font-medium text-emerald-700">Asset Issue Details</p>
                   <div className="flex justify-between text-sm"><span className="text-slate-500">Issue Type</span><span className="font-medium">{selectedIssueType === "ASSET_REQUEST" ? "Asset Request" : "Asset Problem"}</span></div>
-                  <div className="flex justify-between text-sm"><span className="text-slate-500">Category</span><span className="font-medium">{selected.assetIssue?.assetCategory || "N/A"}</span></div>
                   <div className="flex justify-between text-sm"><span className="text-slate-500">Classification</span><span className="font-medium">{selected.assetIssue?.assetClassification || "N/A"}</span></div>
                   {selectedIssueType === "ASSET_REQUEST" && (
-                    <div className="flex justify-between text-sm"><span className="text-slate-500">Request Name</span><span className="font-medium">{selected.assetIssue?.requestedAssetName || "N/A"}</span></div>
+                    <div className="flex justify-between text-sm"><span className="text-slate-500">Subject</span><span className="font-medium">{selected.title || "N/A"}</span></div>
                   )}
                   {selectedIssueType === "ASSET_PROBLEM" && (
                     <>
-                      <div className="flex justify-between text-sm"><span className="text-slate-500">Request Name</span><span className="font-medium">{selected.assetIssue?.requestedAssetName || "N/A"}</span></div>
-                      <div className="flex justify-between text-sm"><span className="text-slate-500">Asset ID</span><span className="font-medium">{selected.assetIssue?.assetId || "N/A"}</span></div>
-                      <div className="flex justify-between text-sm"><span className="text-slate-500">Asset Serial</span><span className="font-medium">{selected.assetIssue?.assetSerial || "N/A"}</span></div>
+                      <div className="flex justify-between text-sm"><span className="text-slate-500">Subject</span><span className="font-medium">{selected.title || "N/A"}</span></div>
+                      <div className="flex justify-between text-sm"><span className="text-slate-500">Asset Serial</span><span className="font-medium">{selectedAssetSerial}</span></div>
                       <div className="flex justify-between text-sm"><span className="text-slate-500">Asset Status</span><span className="font-medium">{selectedProblemAsset?.assetStatus || "Unknown"}</span></div>
                     </>
                   )}
