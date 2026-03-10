@@ -10,7 +10,7 @@ export default function ITCalendarPage() {
   const [tickets, setTickets] = useState<ITTicket[]>([])
 
   useEffect(() => {
-    apiFetch("/tickets?department=IT", undefined, { forceBackend: true })
+    apiFetch("/tickets?department=IT")
       .then((data) => {
         const normalized = toArrayResponse<unknown>(data).map(normalizeTicket)
         if (isITAdmin(currentUser?.role)) {

@@ -64,9 +64,9 @@ export default function ITTicketsPage() {
 
   useEffect(() => {
     Promise.all([
-      apiFetch("/tickets?department=IT", undefined, { forceBackend: true }),
-      apiFetch("/users?role=IT_SUPPORT", undefined, { forceBackend: true }),
-      apiFetch("/assets", undefined, { forceBackend: true }),
+      apiFetch("/tickets?department=IT"),
+      apiFetch("/users?role=IT_SUPPORT"),
+      apiFetch("/assets"),
     ])
       .then(([ticketData, userData, assetData]) => {
         setTickets(toArrayResponse<unknown>(ticketData).map(normalizeTicket))
@@ -118,7 +118,7 @@ export default function ITTicketsPage() {
       await apiFetch(`/tickets/${id}`, {
         method: "PATCH",
         body: JSON.stringify(payload),
-      }, { forceBackend: true })
+      })
     } catch {
       // Keep optimistic UI when backend update fails.
     }
@@ -136,7 +136,7 @@ export default function ITTicketsPage() {
       const updated = await apiFetch(`/assets/${id}`, {
         method: "PATCH",
         body: JSON.stringify(payload),
-      }, { forceBackend: true })
+      })
       setAssets((prev) => prev.map((asset) => asset.id === id ? normalizeAsset(updated) : asset))
     } catch {
       // Keep optimistic UI when backend update fails.
@@ -242,6 +242,18 @@ export default function ITTicketsPage() {
     return "N/A"
   }
 
+  function resolveAssetStatusForTicket(ticket: ITTicket): string {
+    if (ticket.assetIssue?.assetId) {
+      const matched = assets.find((asset) => asset.id === ticket.assetIssue?.assetId)
+      if (matched?.assetStatus) return matched.assetStatus
+    }
+    if (ticket.assetIssue?.assetSerial) {
+      const matched = assets.find((asset) => asset.serialNumber === ticket.assetIssue?.assetSerial)
+      if (matched?.assetStatus) return matched.assetStatus
+    }
+    return "UNKNOWN"
+  }
+
   if (loading) {
     return (
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -303,6 +315,7 @@ export default function ITTicketsPage() {
         {visibleTickets.map((ticket) => {
           const issueType = resolveTicketIssueType(ticket)
           const ticketAssetSerial = resolveAssetSerialForTicket(ticket)
+          const ticketAssetStatus = resolveAssetStatusForTicket(ticket)
           return (
           <Card
             key={ticket.id}
@@ -362,6 +375,7 @@ export default function ITTicketsPage() {
                     <span>Class: {ticket.assetIssue?.assetClassification || "N/A"}</span>
                   </div>
                   <p className="text-[11px] text-slate-600">Asset Serial: {ticketAssetSerial}</p>
+                  <p className="text-[11px] text-slate-600">Asset Status: {ticketAssetStatus.replace("_", " ")}</p>
                 </div>
               )}
               <div className="flex items-center justify-between">

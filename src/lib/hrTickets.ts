@@ -24,10 +24,6 @@ function isAssignedToCurrentHr(ticket: HrTicketAssignee, userId?: string, userEm
   return byId || byEmail;
 }
 
-export async function getHrTickets() {
-  return apiFetch("/tickets?department=HR");
-}
-
 export async function getHrTicketsForCurrentUser<T = unknown>(): Promise<T[]> {
   const payload = await apiFetch("/tickets?department=HR");
   const tickets = toArrayResponse<T & HrTicketAssignee>(payload);
@@ -38,14 +34,4 @@ export async function getHrTicketsForCurrentUser<T = unknown>(): Promise<T[]> {
 
   if (!userId && !userEmail) return [];
   return tickets.filter((ticket) => isAssignedToCurrentHr(ticket, userId, userEmail)) as T[];
-}
-
-export async function updateTicketStatus(
-  id: string,
-  status: "OPEN" | "IN_PROGRESS" | "RESOLVED"
-) {
-  return apiFetch(`/tickets/${id}/status`, {
-    method: "PATCH",
-    body: JSON.stringify({ status }),
-  });
 }

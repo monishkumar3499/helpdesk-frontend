@@ -11,7 +11,7 @@ export default function ITSlaPage() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    apiFetch("/tickets?department=IT", undefined, { forceBackend: true })
+    apiFetch("/tickets?department=IT")
       .then((data) => {
         const normalized = toArrayResponse<unknown>(data).map(normalizeTicket)
         const scoped = isITAdmin(currentUser?.role)

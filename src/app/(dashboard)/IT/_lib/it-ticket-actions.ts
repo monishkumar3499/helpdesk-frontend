@@ -4,7 +4,7 @@ import { addAdminAlert, getRejectionMap, saveRejectionMap } from "./use-it-ticke
 
 export async function refreshTickets(setTickets: (tickets: ITTicket[]) => void) {
   try {
-    const fresh = await apiFetch("/tickets?department=IT", undefined, { forceBackend: true })
+    const fresh = await apiFetch("/tickets?department=IT")
     setTickets(fresh.map(normalizeTicket))
   } catch {
     setTickets([])
@@ -16,7 +16,6 @@ export async function acceptTicket(ticket: ITTicket, setTickets: (tickets: ITTic
     await apiFetch(
       `/tickets/${ticket.id}/status`,
       { method: "PATCH", body: JSON.stringify({ status: "IN_PROGRESS" }) },
-      { forceBackend: true },
     )
     await refreshTickets(setTickets)
     setBanner(`Ticket ${ticket.id} moved to IN_PROGRESS.`)
@@ -54,7 +53,6 @@ export async function rejectTicket(
     await apiFetch(
       `/tickets/${ticket.id}`,
       { method: "PATCH", body: JSON.stringify({ assignedToId: nextAssignee.id, status: "OPEN" }) },
-      { forceBackend: true },
     )
     await refreshTickets(setTickets)
     setBanner(`Ticket ${ticket.id} reassigned to ${nextAssignee.name}.`)
@@ -74,7 +72,6 @@ export async function manuallyAssign(
     await apiFetch(
       `/tickets/${ticket.id}`,
       { method: "PATCH", body: JSON.stringify({ assignedToId: selectedId, status: "OPEN" }) },
-      { forceBackend: true },
     )
     const map = getRejectionMap()
     delete map[ticket.id]

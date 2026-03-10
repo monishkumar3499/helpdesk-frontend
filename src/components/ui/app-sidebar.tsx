@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { Users, LayoutDashboard, TicketPlus, Ticket, History, ClipboardList } from "lucide-react";
+import { LayoutDashboard, TicketPlus, ClipboardList } from "lucide-react";
 
 import {
   Sidebar,

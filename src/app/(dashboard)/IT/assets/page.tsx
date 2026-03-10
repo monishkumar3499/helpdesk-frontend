@@ -32,7 +32,7 @@ export default function ITAssetsPage() {
   const [sortBy, setSortBy] = useState("NEWEST")
 
   useEffect(() => {
-    apiFetch("/assets", undefined, { forceBackend: true })
+    apiFetch("/assets")
       .then((data) => setAssets(toArrayResponse<unknown>(data).map(normalizeAsset)))
       .catch(() => setAssets([]))
       .finally(() => setLoading(false))

@@ -23,7 +23,7 @@ export default function PurchaseAssetsPage() {
       const calls = Array.from({ length: quantity }).map((_, index) => apiFetch("/assets", {
         method: "POST",
         body: JSON.stringify({ serialNumber: `AST-${assetType.slice(0, 2)}-${String(now + index).slice(-6)}`, assetName, assetType }),
-      }, { forceBackend: true }))
+      }))
       await Promise.all(calls)
       setMessage(`Purchased and added ${quantity} ${assetType.toLowerCase()} assets.`)
       setAssetName("")

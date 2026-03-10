@@ -1,12 +1,9 @@
 "use client"
 
 import { getHrTicketsForCurrentUser } from "@/lib/hrTickets"
-import { Button } from "@/components/ui/button"
-import Link from "next/link"
 import { useEffect, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { CheckCircle2, Clock, AlertTriangle, TrendingUp, Users, BarChart3, Activity } from "lucide-react"
+import { CheckCircle2, Clock, AlertTriangle, Users, BarChart3, Activity } from "lucide-react"
 
 type Ticket = {
   id: string
@@ -43,14 +40,12 @@ function BarChart({ data, maxVal }: { data: { label: string; value: number; colo
 export default function ReportsPage() {
   const [tickets, setTickets] = useState<Ticket[]>([])
   const [usingMock, setUsingMock] = useState(false)
-  const [loading, setLoading] = useState(true)
 
   const open = tickets.filter(t => t.status === "OPEN").length
   const inProgress = tickets.filter(t => t.status === "IN_PROGRESS").length
   const resolved = tickets.filter(t => t.status === "RESOLVED").length
   const rejected = tickets.filter(t => t.status === "REJECTED").length
   const critical = tickets.filter(t => t.priority === "CRITICAL").length
-  const resolutionRate = tickets.length > 0 ? Math.round((resolved / tickets.length) * 100) : 0
 
   const statusData = [
     { label: "Open", value: open, color: "bg-blue-500" },
@@ -71,8 +66,6 @@ export default function ReportsPage() {
   tickets.forEach(t => {
     submitterCount[t.employeeName] = (submitterCount[t.employeeName] || 0) + 1
   })
-  const topSubmitters = Object.entries(submitterCount).sort((a, b) => b[1] - a[1]).slice(0, 5)
-
   // HR commented tickets
   const commentedTickets = tickets.filter(t => t.hrComment)
 
@@ -95,7 +88,6 @@ export default function ReportsPage() {
         setTickets([])
         setUsingMock(true)
       })
-      .finally(() => setLoading(false))
   }, [])
   return (
     <>

@@ -39,8 +39,8 @@ export default function ITSupportPage() {
     }
 
     Promise.all([
-      apiFetch("/users?role=IT_SUPPORT", undefined, { forceBackend: true }),
-      apiFetch("/tickets?department=IT", undefined, { forceBackend: true }),
+      apiFetch("/users?role=IT_SUPPORT"),
+      apiFetch("/tickets?department=IT"),
     ])
       .then(([users, ticketData]) => {
         setTeam(toArrayResponse<ITUser>(users).filter((member) => member.isActive !== false))

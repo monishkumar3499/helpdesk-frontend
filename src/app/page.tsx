@@ -60,7 +60,6 @@ export default function HomePage() {
           method: "POST",
           body: JSON.stringify({ email, password }),
         },
-        { forceBackend: true },
       )
       const data = response as LoginResponse
       const backendRole = normalizeRole(data.user.role)
@@ -166,14 +165,6 @@ export default function HomePage() {
           >
             {loading ? "Signing in..." : "Sign In"}
           </Button>
-
-          <div className="bg-blue-50 rounded-lg p-3 border border-blue-100">
-            <p className="text-xs text-blue-700 font-medium mb-1">Credentials for testing:</p>
-            <p className="text-xs text-blue-600">HR: meera.hr@company.com | Hr123!</p>
-            <p className="text-xs text-blue-600">IT Admin: admin@company.com | Admin123!</p>
-            <p className="text-xs text-blue-600">IT Support: ravi.support@company.com | Support123!</p>
-            <p className="text-xs text-blue-600">Employee: john.employee@company.com | Employee123!</p>
-          </div>
         </CardContent>
       </Card>
     </div>

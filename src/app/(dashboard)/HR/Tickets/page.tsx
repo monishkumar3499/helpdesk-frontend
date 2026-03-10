@@ -44,8 +44,6 @@ export default function HrTicketsPage() {
   const [category, setCategory] = useState("All")
   const [selected, setSelected] = useState<Ticket | null>(null)
   const [hrComment, setHrComment] = useState("")
-  const [rejectReason, setRejectReason] = useState("")
-  const [showRejectBox, setShowRejectBox] = useState(false)
   const [loading, setLoading] = useState(true)
   const [usingMock, setUsingMock] = useState(false)
 
@@ -126,39 +124,14 @@ export default function HrTicketsPage() {
     }
   }
 
-  async function handleReject() {
-    if (!selected || !rejectReason.trim()) return
-    try {
-      if (!usingMock) {
-        await apiFetch(`/tickets/${selected.id}/status`, {
-          method: "PATCH",
-          body: JSON.stringify({ status: "REJECTED" }),
-        })
-      }
-      setTickets(prev => prev.map(t => 
-        t.id === selected.id 
-          ? { ...t, status: "REJECTED", rejectedReason: rejectReason, hrComment: rejectReason } 
-          : t 
-      ))
-    } catch (error) {
-      console.error("Error rejecting ticket:", error)
-    } finally {
-      closeModal()
-    }
-  }
-
   function openTicket(ticket: Ticket) {
     setSelected(ticket)
     setHrComment(ticket.hrComment || "")
-    setRejectReason(ticket.rejectedReason || "")
-    setShowRejectBox(false)
   }
 
   function closeModal() {
     setSelected(null)
     setHrComment("")
-    setRejectReason("")
-    setShowRejectBox(false)
   }
 
   if (loading) return (
@@ -311,19 +284,6 @@ export default function HrTicketsPage() {
                     value={hrComment}
                     onChange={(e) => setHrComment(e.target.value)}
                     className="text-sm resize-none"
-                    rows={2}
-                  />
-                </div>
-              )}
-
-              {showRejectBox && (
-                <div>
-                  <p className="text-xs text-red-500 mb-1 font-medium">Rejection Reason (required)</p>
-                  <Textarea
-                    placeholder="Please provide a reason for rejection..."
-                    value={rejectReason}
-                    onChange={(e) => setRejectReason(e.target.value)}
-                    className="text-sm resize-none border-red-200"
                     rows={2}
                   />
                 </div>

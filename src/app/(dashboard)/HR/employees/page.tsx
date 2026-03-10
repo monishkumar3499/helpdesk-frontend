@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import { apiFetch } from "@/lib/api"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Search, Mail, ShieldCheck } from "lucide-react"
@@ -22,32 +22,20 @@ const roleColors: Record<Role, string> = {
   IT_ADMIN: "bg-orange-100 text-orange-700 border-orange-200",
 }
 
-const MOCK: Employee[] = [
-  { id: "1", name: "Arman singh", email: "aarav@company.com", role: "EMPLOYEE", isActive: true, createdAt: "2024-01-15" },
-  { id: "2", name: "Priya Nair", email: "priya@company.com", role: "HR", isActive: true, createdAt: "2023-11-20" },
-  { id: "3", name: "Rohan Mehta", email: "rohan@company.com", role: "IT_SUPPORT", isActive: true, createdAt: "2024-02-10" },
-  { id: "4", name: "Sneha Pillai", email: "sneha@company.com", role: "EMPLOYEE", isActive: false, createdAt: "2023-09-05" },
-  { id: "5", name: "Kiran Raj", email: "kiran@company.com", role: "EMPLOYEE", isActive: true, createdAt: "2024-03-01" },
-  { id: "6", name: "Divya Krishnan", email: "divya@company.com", role: "IT_ADMIN", isActive: true, createdAt: "2023-07-18" },
-]
-
 export default function EmployeesPage() {
   const [employees, setEmployees] = useState<Employee[]>([])
   const [search, setSearch] = useState("")
   const [roleFilter, setRoleFilter] = useState("All")
   const [selected, setSelected] = useState<Employee | null>(null)
   const [loading, setLoading] = useState(true)
-  const [usingMock, setUsingMock] = useState(false)
 
   useEffect(() => {
     apiFetch("/users")
       .then((data) => {
         setEmployees(data)
-        setUsingMock(false)
       })
       .catch(() => {
-        setEmployees(MOCK)
-        setUsingMock(true)
+        setEmployees([])
       })
       .finally(() => setLoading(false))
   }, [])
@@ -67,7 +55,6 @@ export default function EmployeesPage() {
         <h2 className="text-2xl font-bold text-slate-800">Employees</h2>
         <p className="text-sm text-slate-500 mt-1">
           {employees.length} total · {employees.filter(e => e.isActive).length} active
-          {usingMock && <span className="ml-2 text-orange-500">(Demo data — backend offline)</span>}
         </p>
       </div>
 

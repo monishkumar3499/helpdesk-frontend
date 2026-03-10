@@ -19,8 +19,8 @@ export function useITTicketBoard(view: BoardView) {
   useEffect(() => {
     const sessionUser = getCurrentUser()
     Promise.all([
-      apiFetch("/tickets?department=IT", undefined, { forceBackend: true }),
-      apiFetch("/users?role=IT_SUPPORT", undefined, { forceBackend: true }),
+      apiFetch("/tickets?department=IT"),
+      apiFetch("/users?role=IT_SUPPORT"),
     ])
       .then(([ticketData, userData]) => {
         const activeTeam = (userData as ITUser[]).filter((member) => member.isActive !== false)

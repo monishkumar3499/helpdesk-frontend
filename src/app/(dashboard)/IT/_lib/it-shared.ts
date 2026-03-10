@@ -7,7 +7,14 @@ type RawTicket = Partial<ITTicket> & {
   department?: string
   createdAt?: string
   issueType?: TicketIssueType
-  assetIssue?: TicketAssetIssue | null
+  assetIssue?: (TicketAssetIssue & {
+    assetSerialNumber?: string | null
+    asset?: {
+      id?: string | null
+      serialNumber?: string | null
+      assetStatus?: string | null
+    } | null
+  }) | null
   assignedTo?: {
     id?: string
     _id?: string
@@ -33,7 +40,13 @@ function deriveIssueType(ticket: RawTicket): TicketIssueType {
   if (!issue) return "GENERAL"
 
   // Workflow rule: asset reference means problem, missing reference means request.
-  if (hasText(issue.assetId) || hasText(issue.assetSerial)) return "ASSET_PROBLEM"
+  if (
+    hasText(issue.assetId)
+    || hasText(issue.assetSerial)
+    || hasText(issue.assetSerialNumber)
+    || hasText(issue.asset?.id)
+    || hasText(issue.asset?.serialNumber)
+  ) return "ASSET_PROBLEM"
   return "ASSET_REQUEST"
 }
 
@@ -48,20 +61,29 @@ export function normalizeTicket(raw: unknown): ITTicket {
   const ticket = (raw ?? {}) as RawTicket
   const assignedToId = ticket.assignedToId ?? ticket.assignedTo?.id ?? ticket.assignedTo?._id ?? null
   const resolvedIssueType = resolveTicketIssueType(ticket as Pick<ITTicket, "issueType" | "assetIssue">)
+  const rawAssetIssue = ticket.assetIssue
+  const normalizedAssetSerial = rawAssetIssue?.assetSerial
+    ?? rawAssetIssue?.assetSerialNumber
+    ?? rawAssetIssue?.asset?.serialNumber
+    ?? null
+  const normalizedAssetId = rawAssetIssue?.assetId
+    ?? rawAssetIssue?.asset?.id
+    ?? null
+
   return {
     id: ticket.id || ticket._id || "",
     title: ticket.title || "Untitled Ticket",
     summary: ticket.summary || "",
     department: ticket.department || "IT",
     issueType: resolvedIssueType,
-    assetIssue: ticket.assetIssue
+    assetIssue: rawAssetIssue
       ? {
-        ...ticket.assetIssue,
-        assetId: ticket.assetIssue.assetId ?? null,
-        assetSerial: ticket.assetIssue.assetSerial ?? null,
-        assetCategory: ticket.assetIssue.assetCategory ?? null,
-        assetClassification: ticket.assetIssue.assetClassification ?? null,
-        requestedAssetName: ticket.assetIssue.requestedAssetName ?? null,
+        ...rawAssetIssue,
+        assetId: normalizedAssetId,
+        assetSerial: normalizedAssetSerial,
+        assetCategory: rawAssetIssue.assetCategory ?? null,
+        assetClassification: rawAssetIssue.assetClassification ?? null,
+        requestedAssetName: rawAssetIssue.requestedAssetName ?? null,
       }
       : null,
     status: ticket.status || "OPEN",
