@@ -27,7 +27,7 @@ type Ticket = {
 
 const MOCK_TICKETS: Ticket[] = [
   { id: "1", title: "Leave Request", summary: "I need 3 days sick leave due to fever", category: "Leave Request", employeeName: "Aarav Kumar", employeeId: "EMP001", priority: "HIGH", status: "OPEN", department: "HR" },
-  // Add more mock tickets as necessary...
+
 ]
 
 const priorityColor: Record<string, string> = {

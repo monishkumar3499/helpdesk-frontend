@@ -39,7 +39,7 @@ export default function CalendarPage() {
   useEffect(() => {
     apiFetch("/tickets?department=HR")
       .then((response) => {
-        // Ensure the fetched data is an array
+      
         if (Array.isArray(response.data)) {
           setTickets(response.data);
         } else {
@@ -48,7 +48,7 @@ export default function CalendarPage() {
         }
       })
       .catch(() => {
-        // Mock data fallback
+        // Mock data 
         const mock: Ticket[] = [
           { id: "1", title: "Leave Request - Sick", status: "OPEN", priority: "HIGH", createdAt: new Date().toISOString(), createdBy: { name: "Aarav Sharma" } },
           { id: "2", title: "Payroll Discrepancy", status: "IN_PROGRESS", priority: "CRITICAL", createdAt: new Date(Date.now() - 86400000).toISOString(), createdBy: { name: "Priya Nair" } },

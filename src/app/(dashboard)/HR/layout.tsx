@@ -98,9 +98,9 @@ export default function HrLayout({ children }: { children: ReactNode }) {
         <header className="h-14 border-b flex items-center px-6 justify-between bg-white">
           <h1 className="font-semibold text-slate-800">HR Management System</h1>
           <div className="flex items-center gap-4">
-            <span className="text-sm text-slate-500 hidden md:block">
+            {/* <span className="text-sm text-slate-500 hidden md:block">
               {new Date().toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long" })}
-            </span>
+            </span> */}
             <Button
               variant="outline"
               className="text-red-600 border-red-200 hover:bg-red-50"
