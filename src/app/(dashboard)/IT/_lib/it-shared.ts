@@ -2,31 +2,64 @@ import { type ITAsset, type ITTicket, type TicketCategory, type TicketPriority, 
 
 type RawTicket = Partial<ITTicket> & {
   id?: string
+  _id?: string
   title?: string
   department?: string
   createdAt?: string
   issueType?: TicketIssueType
   assetIssue?: TicketAssetIssue | null
+  assignedTo?: {
+    id?: string
+    _id?: string
+    name?: string
+    email?: string
+    role?: string
+  } | null
 }
 type RawAsset = Partial<ITAsset> & { id?: string; serialNumber?: string; assetName?: string; createdAt?: string }
 
 export const PRIORITY_DEADLINE_DAYS: Record<TicketPriority, number> = { CRITICAL: 1, HIGH: 3, LOW: 7 }
 export const ASSET_THRESHOLDS: Record<ITAsset["assetType"], number> = { HARDWARE: 5, SOFTWARE: 5, NETWORK: 3 }
 
+function hasText(value?: string | null): boolean {
+  return typeof value === "string" && value.trim().length > 0
+}
+
+function deriveIssueType(ticket: RawTicket): TicketIssueType {
+  const issue = ticket.assetIssue
+  if (!issue) return "GENERAL"
+
+  const category = issue.assetCategory?.trim().toUpperCase()
+  if (category === "ASSET_PROBLEM") return "ASSET_PROBLEM"
+  if (category === "ASSET_REQUEST") return "ASSET_REQUEST"
+
+  const hasAssetId = hasText(issue.assetId)
+  const hasRequestedAssetName = hasText(issue.requestedAssetName)
+  const hasCategory = hasText(issue.assetCategory)
+  const hasClassification = hasText(issue.assetClassification)
+
+  if (hasAssetId && hasRequestedAssetName && hasCategory && hasClassification) return "ASSET_PROBLEM"
+  if (!hasAssetId && hasRequestedAssetName && hasCategory && hasClassification) return "ASSET_REQUEST"
+  if (hasAssetId) return "ASSET_PROBLEM"
+  if (hasRequestedAssetName) return "ASSET_REQUEST"
+  return "GENERAL"
+}
+
 export function normalizeTicket(raw: unknown): ITTicket {
   const ticket = (raw ?? {}) as RawTicket
+  const assignedToId = ticket.assignedToId ?? ticket.assignedTo?.id ?? ticket.assignedTo?._id ?? null
   return {
-    id: ticket.id || "",
+    id: ticket.id || ticket._id || "",
     title: ticket.title || "Untitled Ticket",
     summary: ticket.summary || "",
     department: ticket.department || "IT",
-    issueType: ticket.issueType || "GENERAL",
+    issueType: ticket.issueType || deriveIssueType(ticket),
     assetIssue: ticket.assetIssue || null,
     status: ticket.status || "OPEN",
     priority: ticket.priority || "LOW",
     createdAt: ticket.createdAt || new Date().toISOString(),
     createdById: ticket.createdById,
-    assignedToId: ticket.assignedToId ?? null,
+    assignedToId,
     createdBy: ticket.createdBy,
     assignedTo: ticket.assignedTo,
   }

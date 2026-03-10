@@ -59,9 +59,10 @@ export default function ITTicketsPage() {
 
   const currentMemberId = useMemo(() => {
     if (isAdmin) return null
-    if (currentUser?.id) return currentUser.id
     const byEmail = team.find((member) => member.email === currentUser?.email)
-    return byEmail?.id || null
+    if (byEmail?.id) return byEmail.id
+    if (currentUser?.id && team.some((member) => member.id === currentUser.id)) return currentUser.id
+    return null
   }, [isAdmin, currentUser?.id, currentUser?.email, team])
 
   const categories = useMemo(

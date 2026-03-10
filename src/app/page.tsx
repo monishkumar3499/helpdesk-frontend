@@ -14,10 +14,10 @@ import {
 } from "@/components/ui/dropdown-menu"
 
 const MOCK_USERS = [
-  { id: "u-hr-1", email: "hr@company.com", password: "password123", role: "HR", name: "HR Manager" },
-  { id: "it-admin-1", email: "it.admin@company.com", password: "password123", role: "IT_ADMIN", name: "IT Admin Lead" },
-  { id: "it-2", email: "ravi.it@company.com", password: "password123", role: "IT_SUPPORT", name: "Ravi IT" },
-  { id: "emp-1", email: "employee@company.com", password: "password123", role: "EMPLOYEE", name: "Test Employee" },
+  { email: "meera.hr@company.com", password: "password123", role: "HR", name: "Meera HR" },
+  { email: "admin@company.com", password: "password123", role: "IT_ADMIN", name: "Aarav Admin" },
+  { email: "ravi.support@company.com", password: "password123", role: "IT_SUPPORT", name: "Ravi Support" },
+  { email: "john.employee@company.com", password: "password123", role: "EMPLOYEE", name: "John Doe" },
 ]
 
 function normalizeRole(role: string) {
@@ -64,7 +64,6 @@ export default function HomePage() {
         "user",
         JSON.stringify({
           email: user.email,
-          id: user.id,
           name: user.name,
           role: normalizeRole(user.role),
           loginTime: new Date().toISOString(),
@@ -155,10 +154,10 @@ export default function HomePage() {
 
           <div className="bg-blue-50 rounded-lg p-3 border border-blue-100">
             <p className="text-xs text-blue-700 font-medium mb-1">Credentials for testing:</p>
-            <p className="text-xs text-blue-600">HR: hr@company.com | password123</p>
-            <p className="text-xs text-blue-600">IT Admin: it.admin@company.com | password123</p>
-            <p className="text-xs text-blue-600">IT Support: ravi.it@company.com | password123</p>
-            <p className="text-xs text-blue-600">Employee: employee@company.com | password123</p>
+            <p className="text-xs text-blue-600">HR: meera.hr@company.com | password123</p>
+            <p className="text-xs text-blue-600">IT Admin: admin@company.com | password123</p>
+            <p className="text-xs text-blue-600">IT Support: ravi.support@company.com | password123</p>
+            <p className="text-xs text-blue-600">Employee: john.employee@company.com | password123</p>
           </div>
         </CardContent>
       </Card>

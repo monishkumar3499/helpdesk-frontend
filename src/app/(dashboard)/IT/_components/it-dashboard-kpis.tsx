@@ -1,14 +1,37 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { AlertTriangle, CircleCheckBig, Layers, ShieldAlert, Ticket, Timer } from "lucide-react"
+import { AlertTriangle, CircleCheckBig, Layers, PackagePlus, ShieldAlert, Ticket, Timer, Wrench } from "lucide-react"
 
-type Props = { ticketCount: number; openCount: number; inProgressCount: number; resolvedCount: number; overdueCount: number; assetAlertCount: number }
+type Props = {
+  ticketCount: number
+  openCount: number
+  inProgressCount: number
+  resolvedCount: number
+  overdueCount: number
+  assetAlertCount: number
+  generalCount: number
+  assetRequestCount: number
+  assetProblemCount: number
+}
 
-export function ITDashboardKpis({ ticketCount, openCount, inProgressCount, resolvedCount, overdueCount, assetAlertCount }: Props) {
+export function ITDashboardKpis({
+  ticketCount,
+  openCount,
+  inProgressCount,
+  resolvedCount,
+  overdueCount,
+  assetAlertCount,
+  generalCount,
+  assetRequestCount,
+  assetProblemCount,
+}: Props) {
   const items = [
     { label: "IT Tickets", value: ticketCount, color: "border-l-blue-500", icon: Ticket, iconColor: "text-blue-500" },
     { label: "Assigned (OPEN)", value: openCount, color: "border-l-sky-500", icon: Layers, iconColor: "text-sky-500" },
     { label: "Accepted (IN_PROGRESS)", value: inProgressCount, color: "border-l-amber-500", icon: Timer, iconColor: "text-amber-500" },
     { label: "Resolved", value: resolvedCount, color: "border-l-green-500", icon: CircleCheckBig, iconColor: "text-green-500" },
+    { label: "General", value: generalCount, color: "border-l-slate-500", icon: Ticket, iconColor: "text-slate-500" },
+    { label: "Asset Request", value: assetRequestCount, color: "border-l-emerald-500", icon: PackagePlus, iconColor: "text-emerald-500" },
+    { label: "Asset Problem", value: assetProblemCount, color: "border-l-amber-600", icon: Wrench, iconColor: "text-amber-600" },
     { label: "SLA Alerts", value: overdueCount, color: "border-l-red-500", icon: ShieldAlert, iconColor: "text-red-500" },
     { label: "Asset Alerts", value: assetAlertCount, color: "border-l-orange-500", icon: AlertTriangle, iconColor: "text-orange-500" },
   ]

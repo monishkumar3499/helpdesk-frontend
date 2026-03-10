@@ -14,10 +14,14 @@ export default function ITDashboardPage() {
   if (state.loading) {
     return (
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {[...Array(6)].map((_, index) => <div key={index} className="h-24 rounded-xl bg-slate-100 animate-pulse" />)}
+        {[...Array(9)].map((_, index) => <div key={index} className="h-24 rounded-xl bg-slate-100 animate-pulse" />)}
       </div>
     )
   }
+
+  const generalCount = state.tickets.filter((ticket) => ticket.issueType === "GENERAL").length
+  const assetRequestCount = state.tickets.filter((ticket) => ticket.issueType === "ASSET_REQUEST").length
+  const assetProblemCount = state.tickets.filter((ticket) => ticket.issueType === "ASSET_PROBLEM").length
 
   return (
     <div className="it-page-stack">
@@ -45,6 +49,9 @@ export default function ITDashboardPage() {
         openCount={state.tickets.filter((t) => t.status === "OPEN").length}
         inProgressCount={state.tickets.filter((t) => t.status === "IN_PROGRESS").length}
         resolvedCount={state.tickets.filter((t) => t.status === "RESOLVED").length}
+        generalCount={generalCount}
+        assetRequestCount={assetRequestCount}
+        assetProblemCount={assetProblemCount}
         overdueCount={state.overdueTickets.length}
         assetAlertCount={state.lowStockAlerts.length}
       />

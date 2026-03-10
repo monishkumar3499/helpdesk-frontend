@@ -26,7 +26,12 @@ export function useITTicketBoard(view: BoardView) {
         const activeTeam = (userData as ITUser[]).filter((member) => member.isActive !== false)
         setTickets(ticketData.map(normalizeTicket))
         setTeam(activeTeam)
-        setCurrentUserId(activeTeam.find((m) => m.email === sessionUser?.email)?.id || null)
+        const matchedByEmail = activeTeam.find((member) => member.email === sessionUser?.email)?.id
+        const validSessionId =
+          sessionUser?.id && activeTeam.some((member) => member.id === sessionUser.id)
+            ? sessionUser.id
+            : null
+        setCurrentUserId(matchedByEmail || validSessionId)
         setUsingMock(false)
       })
       .catch(() => {

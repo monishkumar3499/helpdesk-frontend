@@ -31,9 +31,10 @@ export function useITDashboard() {
   const [role] = useState(() => normalizeITRole(currentUser?.role))
   const supportMemberId = useMemo(() => {
     if (isITAdmin(role)) return null
-    if (currentUser?.id) return currentUser.id
     const byEmail = team.find((member) => member.email === currentUser?.email)
-    return byEmail?.id || null
+    if (byEmail?.id) return byEmail.id
+    if (currentUser?.id && team.some((member) => member.id === currentUser.id)) return currentUser.id
+    return null
   }, [currentUser?.email, currentUser?.id, role, team])
 
   useEffect(() => {
@@ -51,7 +52,9 @@ export function useITDashboard() {
         if (isITAdmin(role)) {
           setTickets(normalizedTickets)
         } else {
-          const supportId = currentUser?.id || activeTeam.find((member) => member.email === currentUser?.email)?.id
+          const supportId =
+            activeTeam.find((member) => member.email === currentUser?.email)?.id ||
+            (currentUser?.id && activeTeam.some((member) => member.id === currentUser.id) ? currentUser.id : undefined)
           setTickets(supportId ? normalizedTickets.filter((ticket) => ticket.assignedToId === supportId) : [])
         }
         setUsingMock(false)
