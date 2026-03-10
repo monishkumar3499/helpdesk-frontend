@@ -15,8 +15,12 @@ export default function HrLayout({ children }: { children: ReactNode }) {
     if (!loading) {
       if (!isAuthenticated || !user) {
         router.push("/login")
-      } else if (!["HR", "IT_ADMIN", "IT_SUPPORT"].includes(user.role)) {
-        router.push("/employee")
+      } else if (!["HR", "ADMIN"].includes(user.role)) {
+        if (["IT_ADMIN", "IT_SUPPORT"].includes(user.role)) {
+          router.push("/IT")
+        } else {
+          router.push("/employee")
+        }
       }
     }
   }, [loading, isAuthenticated, user, router])

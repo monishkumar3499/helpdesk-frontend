@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
+import { clearAuthSession } from '@/lib/auth'
 
 export type UserRole = 'EMPLOYEE' | 'HR' | 'IT_SUPPORT' | 'IT_ADMIN'
 
@@ -65,15 +66,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   function logout() {
-
-    console.log("🚪 Logout")
-
     localStorage.removeItem('authToken')
     localStorage.removeItem('authUser')
-
+    clearAuthSession() // also removes IT dashboard keys ("user", "access_token")
     setToken(null)
     setUser(null)
-
     router.replace('/login')
   }
 

@@ -83,8 +83,8 @@ export default function ReportsPage() {
   const commentedTickets = tickets.filter(t => t.hrComment)
   useEffect(() => {
     apiFetch("/tickets?department=HR")
-      .then((data) => {
-        const validTickets = Array.isArray(data) ? data : (data?.tickets || data?.data || [])
+      .then((res) => {
+        const validTickets = res.data || []
         setTickets(validTickets)
         // Also sync to localStorage for Reports page
         localStorage.setItem("hr_tickets", JSON.stringify(
@@ -129,9 +129,9 @@ export default function ReportsPage() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {[
             { label: "Total Tickets", value: tickets.length, color: "border-l-blue-500", textColor: "text-slate-800", icon: <BarChart3 className="h-8 w-8 text-blue-400" /> },
+            { label: "In Progress", value: inProgress, color: "border-l-yellow-600", textColor: "text-yellow-600", icon: <Users className="h-8 w-8 text-yellow-600" /> },
             { label: "Resolved", value: resolved, color: "border-l-green-500", textColor: "text-green-600", icon: <CheckCircle2 className="h-8 w-8 text-green-400" /> },
             { label: "Critical Issues", value: critical, color: "border-l-red-500", textColor: "text-red-600", icon: <AlertTriangle className="h-8 w-8 text-red-400" /> },
-            { label: "In Progress", value: inProgress, color: "border-l-yellow-600", textColor: "text-yellow-600", icon: <Users className="h-8 w-8 text-yellow-600" /> },
           ].map(kpi => (
             <Card key={kpi.label} className={`border-l-4 ${kpi.color}`}>
               <CardContent className="p-4">

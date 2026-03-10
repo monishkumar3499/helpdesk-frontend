@@ -17,7 +17,11 @@ export default function EmployeeLayout({ children }: { children: ReactNode }) {
       if (!isAuthenticated || !user) {
         router.push("/login")
       } else if (user.role !== "EMPLOYEE") {
-        router.push("/HR")
+        if (user.role === "IT_ADMIN" || user.role === "IT_SUPPORT") {
+          router.push("/IT")
+        } else {
+          router.push("/HR")
+        }
       }
     }
   }, [loading, isAuthenticated, user, router])

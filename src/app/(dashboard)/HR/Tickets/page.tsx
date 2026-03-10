@@ -198,7 +198,7 @@ export default function HrTicketsPage() {
           { label: "Open", count: tickets.filter(t => t.status === "OPEN").length, color: "border-l-blue-500" },
           { label: "In Progress", count: tickets.filter(t => t.status === "IN_PROGRESS").length, color: "border-l-yellow-500" },
           { label: "Resolved", count: tickets.filter(t => t.status === "RESOLVED").length, color: "border-l-green-500" },
-          // { label: "Rejected", count: tickets.filter(t => t.status === "REJECTED").length, color: "border-l-red-500" },
+          { label: "Critical", count: tickets.filter(t => t.priority === "CRITICAL").length, color: "border-l-red-500" },
         ].map(s => (
           <Card key={s.label} className={`border-l-4 ${s.color}`}>
             <CardContent className="p-4 flex items-center justify-between">
@@ -240,7 +240,7 @@ export default function HrTicketsPage() {
                   {ticket.priority}
                 </span>
                 <span className="text-xs text-slate-400">
-                  {new Date(ticket.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short",year:"numeric" })}
+                  {ticket.createdAt ? new Date(ticket.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short",year:"numeric" }) : "N/A"}
                 </span>
               </div>
               {ticket.hrComment && (

@@ -41,6 +41,7 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-
-
-i need 
+# Ignore markdown files but keep README and SETUP instructions
+*.md
+!README.md
+!SETUP_INSTRUCTIONS.md

@@ -45,10 +45,10 @@ export default function CalendarPage(){
 
       try{
 
-        const data = await apiFetch("/tickets/mine")
+        const res = await apiFetch("/tickets/mine")
 
-        if(Array.isArray(data)){
-          setTickets(data)
+        if(res && Array.isArray(res.data)){
+          setTickets(res.data)
         }else{
           setTickets([])
         }

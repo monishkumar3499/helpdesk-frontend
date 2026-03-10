@@ -1,0 +1,501 @@
+"use client"
+
+import { useEffect, useMemo, useState } from "react"
+import { apiFetch } from "@/lib/api"
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Textarea } from "@/components/ui/textarea"
+import { getCurrentUser, inferTicketCategory, isITAdmin, normalizeAsset, normalizeITRole, normalizeTicket, resolveTicketIssueType, type ITAsset, type ITTicket, type ITUser, type TicketIssueType } from "../_lib/it-shared"
+import { AlertTriangle, Cog, PackageCheck, ShieldCheck, Sparkles, Wrench, Filter, Layers, Tag } from "lucide-react"
+
+
+const STATUS_COLOR: Record<string, string> = {
+  OPEN: "bg-blue-100 text-blue-700",
+  IN_PROGRESS: "bg-amber-100 text-amber-700",
+  RESOLVED: "bg-green-100 text-green-700",
+}
+
+const PRIORITY_COLOR: Record<string, string> = {
+  CRITICAL: "bg-red-100 text-red-700 border-red-200",
+  HIGH: "bg-orange-100 text-orange-700 border-orange-200",
+  LOW: "bg-blue-100 text-blue-700 border-blue-200",
+}
+
+const IT_CATEGORIES = ["ALL", "HARDWARE", "SOFTWARE", "NETWORK"] as const
+const ISSUE_TYPE_FILTERS = ["ALL", "GENERAL", "ASSET_REQUEST", "ASSET_PROBLEM"] as const
+
+function toAssetClassification(value?: string | null): "HARDWARE" | "SOFTWARE" | "NETWORK" {
+  const normalized = value?.trim().toUpperCase()
+  if (normalized === "SOFTWARE") return "SOFTWARE"
+  if (normalized === "NETWORK") return "NETWORK"
+  return "HARDWARE"
+}
+
+function toArrayResponse<T>(payload: unknown): T[] {
+  if (Array.isArray(payload)) return payload as T[]
+  if (
+    payload
+    && typeof payload === "object"
+    && "data" in payload
+    && Array.isArray((payload as { data?: unknown }).data)
+  ) {
+    return (payload as { data: T[] }).data
+  }
+  return []
+}
+
+export default function ITTicketsPage() {
+  const [tickets, setTickets] = useState<ITTicket[]>([])
+  const [assets, setAssets] = useState<ITAsset[]>([])
+  const [team, setTeam] = useState<ITUser[]>([])
+  const [selected, setSelected] = useState<ITTicket | null>(null)
+  const [category, setCategory] = useState("ALL")
+  const [issueTypeFilter, setIssueTypeFilter] = useState<(typeof ISSUE_TYPE_FILTERS)[number]>("ALL")
+  const [loading, setLoading] = useState(true)
+  const [comment, setComment] = useState("")
+  const [selectedAssetId, setSelectedAssetId] = useState("")
+  const currentUser = getCurrentUser()
+  const role = normalizeITRole(currentUser?.role)
+  const isAdmin = isITAdmin(role)
+
+  useEffect(() => {
+    Promise.all([
+      apiFetch("/tickets?department=IT", undefined, { forceBackend: true }),
+      apiFetch("/users?role=IT_SUPPORT", undefined, { forceBackend: true }),
+      apiFetch("/assets", undefined, { forceBackend: true }),
+    ])
+      .then(([ticketData, userData, assetData]) => {
+        setTickets(toArrayResponse<unknown>(ticketData).map(normalizeTicket))
+        setTeam(toArrayResponse<ITUser>(userData).filter((member) => member.isActive !== false))
+        setAssets(toArrayResponse<unknown>(assetData).map(normalizeAsset))
+      })
+      .catch(() => {
+        setTickets([])
+        setTeam([])
+        setAssets([])
+      })
+      .finally(() => setLoading(false))
+  }, [])
+
+  const currentMemberId = useMemo(() => {
+    if (isAdmin) return null
+    const byEmail = team.find((member) => member.email === currentUser?.email)
+    if (byEmail?.id) return byEmail.id
+    if (currentUser?.id && team.some((member) => member.id === currentUser.id)) return currentUser.id
+    return null
+  }, [isAdmin, currentUser?.id, currentUser?.email, team])
+
+  const categories = useMemo(
+    () => [...IT_CATEGORIES],
+    [],
+  )
+
+  const visibleTickets = useMemo(() => {
+    const base = isAdmin ? tickets : (currentMemberId ? tickets.filter((ticket) => ticket.assignedToId === currentMemberId) : [])
+    return base.filter((ticket) => {
+      if (category !== "ALL" && inferTicketCategory(ticket) !== category) return false
+      if (issueTypeFilter !== "ALL" && resolveTicketIssueType(ticket) !== issueTypeFilter) return false
+      return true
+    })
+  }, [tickets, isAdmin, currentMemberId, category, issueTypeFilter])
+
+  const openCount = visibleTickets.filter((ticket) => ticket.status === "OPEN").length
+  const inProgressCount = visibleTickets.filter((ticket) => ticket.status === "IN_PROGRESS").length
+  const resolvedCount = visibleTickets.filter((ticket) => ticket.status === "RESOLVED").length
+
+  function closeModal() {
+    setSelected(null)
+    setComment("")
+    setSelectedAssetId("")
+  }
+
+  async function patchTicket(id: string, payload: Record<string, unknown>) {
+    try {
+      await apiFetch(`/tickets/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify(payload),
+      }, { forceBackend: true })
+    } catch {
+      // Keep optimistic UI when backend update fails.
+    }
+  }
+
+  async function handleStatus(status: ITTicket["status"]) {
+    if (!selected) return
+    await patchTicket(selected.id, { status })
+    setTickets((prev) => prev.map((ticket) => (ticket.id === selected.id ? { ...ticket, status } : ticket)))
+    closeModal()
+  }
+
+  async function patchAsset(id: string, payload: Record<string, string | null>) {
+    try {
+      const updated = await apiFetch(`/assets/${id}`, {
+        method: "PATCH",
+        body: JSON.stringify(payload),
+      }, { forceBackend: true })
+      setAssets((prev) => prev.map((asset) => asset.id === id ? normalizeAsset(updated) : asset))
+    } catch {
+      // Keep optimistic UI when backend update fails.
+    }
+  }
+
+  async function handleAssignAsset() {
+    const selectedIssueType = selected ? resolveTicketIssueType(selected) : "GENERAL"
+    if (!selected || selectedIssueType !== "ASSET_REQUEST" || !selectedAssetId || !selected.createdById) return
+
+    const assignedAsset = assets.find((asset) => asset.id === selectedAssetId)
+    const assignedCategory = toAssetClassification(
+      assignedAsset?.assetType || selected.assetIssue?.assetClassification || selected.assetIssue?.assetCategory,
+    )
+
+    await patchAsset(selectedAssetId, { assetStatus: "ASSIGNED", assignedToId: selected.createdById })
+    const nextAssetIssue = {
+      ...(selected.assetIssue || {}),
+      assetId: selectedAssetId,
+      assetCategory: assignedCategory,
+      assetClassification: assignedCategory,
+    }
+    await patchTicket(selected.id, { assetIssue: nextAssetIssue })
+    setTickets((prev) => prev.map((ticket) => (
+      ticket.id === selected.id ? { ...ticket, assetIssue: nextAssetIssue } : ticket
+    )))
+    setSelected((prev) => (prev ? { ...prev, assetIssue: nextAssetIssue } : prev))
+    setAssets((prev) => prev.map((asset) => (
+      asset.id === selectedAssetId ? { ...asset, assetStatus: "ASSIGNED", assignedToId: selected.createdById } : asset
+    )))
+  }
+
+  async function handleAssetProblemStateChange(nextAssetStatus: ITAsset["assetStatus"]) {
+    const selectedIssueType = selected ? resolveTicketIssueType(selected) : "GENERAL"
+    if (!selected || selectedIssueType !== "ASSET_PROBLEM") return
+    const targetAsset = assets.find((asset) => {
+      if (selected.assetIssue?.assetId && asset.id === selected.assetIssue.assetId) return true
+      if (selected.assetIssue?.assetSerial && asset.serialNumber === selected.assetIssue.assetSerial) return true
+      return false
+    })
+    if (!targetAsset) return
+    const targetAssetId = targetAsset.id
+
+    const payload: Record<string, string | null> = { assetStatus: nextAssetStatus }
+    if (nextAssetStatus === "ASSIGNED" && selected.createdById) {
+      payload.assignedToId = selected.createdById
+    }
+    await patchAsset(targetAssetId, payload)
+    setAssets((prev) => prev.map((asset) => (
+      asset.id === targetAssetId
+        ? { ...asset, assetStatus: nextAssetStatus, assignedToId: nextAssetStatus === "ASSIGNED" ? (selected.createdById || asset.assignedToId || null) : asset.assignedToId }
+        : asset
+    )))
+    setTickets((prev) => prev.map((ticket) => (
+      ticket.id === selected.id ? { ...ticket, status: "IN_PROGRESS" } : ticket
+    )))
+    setSelected((prev) => (prev ? { ...prev, status: "IN_PROGRESS" } : prev))
+  }
+
+  const selectedAssignableAssets = useMemo(() => {
+    if (!selected || resolveTicketIssueType(selected) !== "ASSET_REQUEST") return []
+    const wantedCategory = selected.assetIssue?.assetCategory?.trim().toUpperCase()
+    if (wantedCategory !== "HARDWARE" && wantedCategory !== "SOFTWARE" && wantedCategory !== "NETWORK") return []
+
+    return assets.filter((asset) => (
+      asset.assetStatus === "AVAILABLE" && asset.assetType === wantedCategory
+    ))
+  }, [assets, selected])
+
+  const selectedProblemAsset = useMemo(() => {
+    if (!selected || resolveTicketIssueType(selected) !== "ASSET_PROBLEM") return null
+    return assets.find((asset) => {
+      if (selected.assetIssue?.assetId && asset.id === selected.assetIssue.assetId) return true
+      if (selected.assetIssue?.assetSerial && asset.serialNumber === selected.assetIssue.assetSerial) return true
+      return false
+    }) || null
+  }, [assets, selected])
+
+  const selectedIssueType = selected ? resolveTicketIssueType(selected) : "GENERAL"
+
+  function getIssueTypeLabel(issueType: TicketIssueType) {
+    if (issueType === "ASSET_REQUEST") return "Asset Request"
+    if (issueType === "ASSET_PROBLEM") return "Asset Problem"
+    return "General"
+  }
+
+  function getIssueTypeCardStyle(issueType: TicketIssueType) {
+    if (issueType === "ASSET_REQUEST") return "border-emerald-300 bg-emerald-50/50 shadow-emerald-100"
+    if (issueType === "ASSET_PROBLEM") return "border-amber-300 bg-amber-50/50 shadow-amber-100"
+    return "border-slate-200 bg-white shadow-slate-100"
+  }
+
+  if (loading) {
+    return (
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {[...Array(6)].map((_, index) => <div key={index} className="h-36 rounded-xl bg-slate-100 animate-pulse" />)}
+      </div>
+    )
+  }
+
+  return (
+    <div className="it-page-stack">
+      <div className="flex flex-col sm:flex-row items-center gap-4 bg-white/60 backdrop-blur-md p-4 md:px-6 md:py-4 rounded-2xl border border-slate-200/80 shadow-sm mb-6 w-full">
+        <div className="flex items-center gap-2 text-slate-500 font-semibold text-sm uppercase tracking-wider shrink-0">
+          <Filter className="w-4 h-4 text-slate-400" />
+          Filter By
+        </div>
+        <div className="flex flex-1 flex-col sm:flex-row items-center gap-3 w-full">
+          <Select value={category} onValueChange={setCategory}>
+            <SelectTrigger className="w-full sm:w-[220px] bg-white border-slate-200 hover:border-blue-400 focus:ring-blue-100 transition-all rounded-xl h-11 shadow-sm text-slate-700 font-medium">
+              <div className="flex items-center gap-2">
+                <Layers className="w-4 h-4 text-blue-500" />
+                <SelectValue placeholder="Category" />
+              </div>
+            </SelectTrigger>
+            <SelectContent className="rounded-xl shadow-xl border-slate-100 p-1">
+              {categories.map((item) => (
+                <SelectItem key={item} value={item} className="rounded-lg cursor-pointer focus:bg-blue-50 focus:text-blue-700 font-medium py-2">
+                  {item.replace("_", " ")}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <Select value={issueTypeFilter} onValueChange={(value) => setIssueTypeFilter(value as (typeof ISSUE_TYPE_FILTERS)[number])}>
+            <SelectTrigger className="w-full sm:w-[220px] bg-white border-slate-200 hover:border-purple-400 focus:ring-purple-100 transition-all rounded-xl h-11 shadow-sm text-slate-700 font-medium">
+              <div className="flex items-center gap-2">
+                <Tag className="w-4 h-4 text-purple-500" />
+                <SelectValue placeholder="Issue Type" />
+              </div>
+            </SelectTrigger>
+            <SelectContent className="rounded-xl shadow-xl border-slate-100 p-1">
+              {ISSUE_TYPE_FILTERS.map((item) => (
+                <SelectItem key={item} value={item} className="rounded-lg cursor-pointer focus:bg-purple-50 focus:text-purple-700 font-medium py-2">
+                  {item.replace("_", " ")}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {[
+          { label: "Open", value: openCount, color: "border-l-blue-500" },
+          { label: "In Progress", value: inProgressCount, color: "border-l-amber-500" },
+          { label: "Resolved", value: resolvedCount, color: "border-l-green-500" },
+        ].map((item) => (
+          <Card key={item.label} className={`border-l-4 ${item.color} it-hover-card`}>
+            <CardContent className="it-card-pad-sm flex items-center justify-between">
+              <p className="it-kpi-label text-sm">{item.label}</p>
+              <p className="it-kpi-value text-slate-800">{item.value}</p>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+        {visibleTickets.map((ticket) => {
+          const issueType = resolveTicketIssueType(ticket)
+          return (
+          <Card
+            key={ticket.id}
+            className={`cursor-pointer border it-hover-card ${getIssueTypeCardStyle(issueType)}`}
+            onClick={() => {
+              setSelected(ticket)
+              setSelectedAssetId(ticket.assetIssue?.assetId || "")
+            }}
+          >
+            <CardHeader className="pb-2 px-5 pt-5">
+              <CardTitle className="flex items-center justify-between text-sm">
+                <span className="font-semibold text-slate-700">{ticket.title}</span>
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline" className="it-pill border-slate-200 bg-white text-slate-700">{getIssueTypeLabel(issueType)}</Badge>
+                  <span className={`it-pill ${STATUS_COLOR[ticket.status] || "bg-slate-100 text-slate-700"}`}>
+                    {ticket.status.replace("_", " ")}
+                  </span>
+                </div>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="it-card-pad space-y-3 pt-0">
+              <div className="flex items-center gap-3">
+                <Avatar className="h-9 w-9">
+                  <AvatarFallback className="bg-slate-700 text-white text-xs font-bold">
+                    {(ticket.createdBy?.name || "IT").split(" ").map((part) => part[0]).join("")}
+                  </AvatarFallback>
+                </Avatar>
+                <div>
+                  <p className="font-medium text-slate-800 text-sm">{ticket.createdBy?.name || "Unknown"}</p>
+                  <p className="text-xs text-slate-500">{ticket.id}</p>
+                </div>
+              </div>
+              <p className="text-xs text-slate-500 line-clamp-2">{ticket.summary}</p>
+              {issueType === "GENERAL" && (
+                <div className="rounded-md border border-slate-200 bg-slate-50 px-2.5 py-2">
+                  <p className="text-[11px] font-medium text-slate-600">General IT Issue</p>
+                  <p className="text-[11px] text-slate-500">No asset mapping required for this ticket.</p>
+                </div>
+              )}
+              {issueType === "ASSET_REQUEST" && (
+                <div className="space-y-1 rounded-md border border-emerald-200 bg-white px-2.5 py-2">
+                  <p className="text-[11px] text-slate-500">Request Name</p>
+                  <p className="text-xs font-semibold text-slate-700">{ticket.assetIssue?.requestedAssetName || "N/A"}</p>
+                  <div className="grid grid-cols-2 gap-2 text-[11px] text-slate-600">
+                    <span>Category: {ticket.assetIssue?.assetCategory || "N/A"}</span>
+                    <span>Class: {ticket.assetIssue?.assetClassification || "N/A"}</span>
+                  </div>
+                </div>
+              )}
+              {issueType === "ASSET_PROBLEM" && (
+                <div className="space-y-1 rounded-md border border-amber-200 bg-white px-2.5 py-2">
+                  <p className="text-[11px] inline-flex items-center gap-1 font-medium text-amber-700"><AlertTriangle className="h-3.5 w-3.5" />Asset Problem</p>
+                  <p className="text-[11px] text-slate-500">Request Name</p>
+                  <p className="text-xs font-semibold text-slate-700">{ticket.assetIssue?.requestedAssetName || "N/A"}</p>
+                  <div className="grid grid-cols-2 gap-2 text-[11px] text-slate-600">
+                    <span>Category: {ticket.assetIssue?.assetCategory || "N/A"}</span>
+                    <span>Class: {ticket.assetIssue?.assetClassification || "N/A"}</span>
+                  </div>
+                  <p className="text-[11px] text-slate-600">Asset ID: {ticket.assetIssue?.assetId || "N/A"}</p>
+                  <p className="text-[11px] text-slate-600">Asset Serial: {ticket.assetIssue?.assetSerial || "N/A"}</p>
+                </div>
+              )}
+              <div className="flex items-center justify-between">
+                <span className={`it-pill border ${PRIORITY_COLOR[ticket.priority]}`}>
+                  {ticket.priority}
+                </span>
+                <span className="text-xs text-slate-400">{new Date(ticket.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}</span>
+              </div>
+            </CardContent>
+          </Card>
+          )
+        })}
+      </div>
+
+      <Dialog open={!!selected} onOpenChange={closeModal}>
+        {selected && (
+          <DialogContent className="max-w-md border-slate-200 shadow-2xl">
+            <DialogHeader>
+              <DialogTitle>Ticket Details</DialogTitle>
+              <DialogDescription>
+                Review ticket details and update workflow actions for this item.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="flex items-center gap-4">
+                <Avatar className="h-14 w-14">
+                  <AvatarFallback className="bg-slate-700 text-white text-lg font-bold">
+                    {(selected.createdBy?.name || "IT").split(" ").map((part) => part[0]).join("")}
+                  </AvatarFallback>
+                </Avatar>
+                <div>
+                  <p className="font-bold text-slate-800">{selected.createdBy?.name || "Unknown"}</p>
+                  <p className="text-sm text-slate-500">{selected.id}</p>
+                  <span className={`it-pill border ${PRIORITY_COLOR[selected.priority]}`}>
+                    {selected.priority}
+                  </span>
+                </div>
+              </div>
+
+              <div className="bg-slate-50 rounded-lg p-4 space-y-2">
+                <div className="flex justify-between text-sm"><span className="text-slate-500">Category</span><span className="font-medium">{inferTicketCategory(selected).replace("_", " ")}</span></div>
+                <div className="flex justify-between text-sm"><span className="text-slate-500">Status</span><span className={`it-pill ${STATUS_COLOR[selected.status] || "bg-slate-100 text-slate-700"}`}>{selected.status.replace("_", " ")}</span></div>
+                <div className="flex justify-between text-sm"><span className="text-slate-500">Assigned</span><span className="font-medium">{selected.assignedTo?.name || team.find((member) => member.id === selected.assignedToId)?.name || "Unassigned"}</span></div>
+              </div>
+
+              {selectedIssueType !== "GENERAL" && (
+                <div className="bg-emerald-50 rounded-lg border border-emerald-100 p-4 space-y-2">
+                  <p className="text-xs font-medium text-emerald-700">Asset Issue Details</p>
+                  <div className="flex justify-between text-sm"><span className="text-slate-500">Issue Type</span><span className="font-medium">{selectedIssueType === "ASSET_REQUEST" ? "Asset Request" : "Asset Problem"}</span></div>
+                  <div className="flex justify-between text-sm"><span className="text-slate-500">Category</span><span className="font-medium">{selected.assetIssue?.assetCategory || "N/A"}</span></div>
+                  <div className="flex justify-between text-sm"><span className="text-slate-500">Classification</span><span className="font-medium">{selected.assetIssue?.assetClassification || "N/A"}</span></div>
+                  {selectedIssueType === "ASSET_REQUEST" && (
+                    <div className="flex justify-between text-sm"><span className="text-slate-500">Request Name</span><span className="font-medium">{selected.assetIssue?.requestedAssetName || "N/A"}</span></div>
+                  )}
+                  {selectedIssueType === "ASSET_PROBLEM" && (
+                    <>
+                      <div className="flex justify-between text-sm"><span className="text-slate-500">Request Name</span><span className="font-medium">{selected.assetIssue?.requestedAssetName || "N/A"}</span></div>
+                      <div className="flex justify-between text-sm"><span className="text-slate-500">Asset ID</span><span className="font-medium">{selected.assetIssue?.assetId || "N/A"}</span></div>
+                      <div className="flex justify-between text-sm"><span className="text-slate-500">Asset Serial</span><span className="font-medium">{selected.assetIssue?.assetSerial || "N/A"}</span></div>
+                      <div className="flex justify-between text-sm"><span className="text-slate-500">Asset Status</span><span className="font-medium">{selectedProblemAsset?.assetStatus || "Unknown"}</span></div>
+                    </>
+                  )}
+                </div>
+              )}
+
+              <div className="bg-slate-50 rounded-lg p-4">
+                <p className="text-xs text-slate-500 mb-1 font-medium">Description</p>
+                <p className="text-sm text-slate-800">{selected.summary || "No details provided."}</p>
+              </div>
+
+              {selected.status !== "RESOLVED" && (
+                <div>
+                  <p className="text-xs text-slate-500 mb-1 font-medium">Internal Comment (optional)</p>
+                  <Textarea
+                    value={comment}
+                    onChange={(event) => setComment(event.target.value)}
+                    placeholder="Add a comment for internal tracking..."
+                    className="text-sm resize-none"
+                    rows={2}
+                  />
+                </div>
+              )}
+
+              <div className="flex gap-2 pt-1">
+                {selected.status === "OPEN" && (
+                  <Button variant="outline" className="flex-1 text-amber-700 border-amber-200 hover:bg-amber-50" onClick={() => handleStatus("IN_PROGRESS")}>
+                    Accept
+                  </Button>
+                )}
+                {selected.status === "IN_PROGRESS" && (
+                  <Button className="flex-1 bg-green-600 hover:bg-green-700" onClick={() => handleStatus("RESOLVED")}>
+                    Resolve
+                  </Button>
+                )}
+                {selected.status === "IN_PROGRESS" && selectedIssueType === "ASSET_REQUEST" && (
+                  <Button variant="outline" className="flex-1 border-emerald-200 text-emerald-700 hover:bg-emerald-50" onClick={handleAssignAsset} disabled={!selectedAssetId}>
+                    <PackageCheck className="mr-1 h-4 w-4" />
+                    Assign Asset
+                  </Button>
+                )}
+                {selected.status === "IN_PROGRESS" && selectedIssueType === "ASSET_PROBLEM" && (
+                  <Button variant="outline" className="flex-1 border-amber-200 text-amber-700 hover:bg-amber-50" onClick={() => handleAssetProblemStateChange("MAINTENANCE")} disabled={!selectedProblemAsset}>
+                    <Wrench className="mr-1 h-4 w-4" />
+                    Maintenance
+                  </Button>
+                )}
+                {selected.status === "IN_PROGRESS" && selectedIssueType === "ASSET_PROBLEM" && (
+                  <Button variant="outline" className="flex-1 border-slate-300 text-slate-700 hover:bg-slate-50" onClick={() => handleAssetProblemStateChange("RETIRED")} disabled={!selectedProblemAsset}>
+                    Retired
+                  </Button>
+                )}
+                {selected.status === "IN_PROGRESS" && selectedIssueType === "ASSET_PROBLEM" && (
+                  <Button variant="outline" className="flex-1 border-blue-200 text-blue-700 hover:bg-blue-50" onClick={() => handleAssetProblemStateChange("ASSIGNED")} disabled={!selectedProblemAsset}>
+                    Assigned Back
+                  </Button>
+                )}
+                {isAdmin && selected.status !== "IN_PROGRESS" && <p className="w-full rounded-md bg-slate-100 px-3 py-2 text-center text-sm text-slate-600">Move ticket to In Progress to take asset actions.</p>}
+              </div>
+
+              {selected.status === "IN_PROGRESS" && selectedIssueType === "ASSET_REQUEST" && (
+                <div className="space-y-1">
+                  <p className="text-xs text-slate-500 font-medium">Assign matching asset</p>
+                  <Select value={selectedAssetId} onValueChange={setSelectedAssetId}>
+                    <SelectTrigger><SelectValue placeholder="Select available asset" /></SelectTrigger>
+                    <SelectContent>
+                      {selectedAssignableAssets.map((asset) => (
+                        <SelectItem key={asset.id} value={asset.id}>{asset.assetName} ({asset.serialNumber})</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {selectedAssignableAssets.length === 0 && (
+                    <p className="text-xs text-amber-600 inline-flex items-center gap-1"><Cog className="h-3.5 w-3.5" />No available matching assets.</p>
+                  )}
+                </div>
+              )}
+            </div>
+          </DialogContent>
+        )}
+      </Dialog>
+    </div>
+  )
+}
