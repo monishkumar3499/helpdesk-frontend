@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
+import { apiFetch } from "@/lib/api"
+import { clearAuthSession, getStoredUser, setAuthSession } from "@/lib/auth"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
@@ -13,12 +15,15 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 
-const MOCK_USERS = [
-  { email: "meera.hr@company.com", password: "password123", role: "HR", name: "Meera HR" },
-  { email: "admin@company.com", password: "password123", role: "IT_ADMIN", name: "Aarav Admin" },
-  { email: "ravi.support@company.com", password: "password123", role: "IT_SUPPORT", name: "Ravi Support" },
-  { email: "john.employee@company.com", password: "password123", role: "EMPLOYEE", name: "John Doe" },
-]
+type LoginResponse = {
+  access_token: string
+  user: {
+    id: string
+    name: string
+    email: string
+    role: string
+  }
+}
 
 function normalizeRole(role: string) {
   if (role === "IT_ADMIN") return "IT_ADMIN"
@@ -36,50 +41,60 @@ export default function HomePage() {
   const [showText, setShowText] = useState(false)
 
   useEffect(() => {
-    const user = localStorage.getItem("user")
-    if (!user) return
+    const storedUser = getStoredUser()
+    if (!storedUser?.role) return
 
-    const parsed = JSON.parse(user)
-    if (parsed.role === "HR") router.push("/HR")
-    else if (["IT_SUPPORT", "IT_ADMIN"].includes(parsed.role)) router.push("/IT")
+    if (storedUser.role === "HR") router.push("/HR")
+    else if (["IT_SUPPORT", "IT_ADMIN"].includes(storedUser.role)) router.push("/IT")
     else router.push("/employee")
   }, [router])
 
-  function handleLogin() {
+  async function handleLogin() {
     setLoading(true)
     setError("")
 
-    setTimeout(() => {
-      const user = MOCK_USERS.find(
-        (item) => item.email === email && item.password === password && item.role === selectedRole,
+    try {
+      const response = await apiFetch(
+        "/auth/login",
+        {
+          method: "POST",
+          body: JSON.stringify({ email, password }),
+        },
+        { forceBackend: true },
       )
+      const data = response as LoginResponse
+      const backendRole = normalizeRole(data.user.role)
 
-      if (!user) {
-        setError("Invalid email, password, or role")
-        setLoading(false)
+      if (selectedRole && backendRole !== selectedRole) {
+        clearAuthSession()
+        setError("Selected role does not match this account")
         return
       }
 
-      localStorage.setItem(
-        "user",
-        JSON.stringify({
-          email: user.email,
-          name: user.name,
-          role: normalizeRole(user.role),
+      setAuthSession(
+        {
+          id: data.user.id,
+          email: data.user.email,
+          name: data.user.name,
+          role: backendRole,
           loginTime: new Date().toISOString(),
-        }),
+        },
+        data.access_token,
       )
 
-      if (user.role === "HR") {
+      if (backendRole === "HR") {
         router.push("/HR")
-      } else if (["IT_ADMIN", "IT_SUPPORT"].includes(user.role)) {
+      } else if (["IT_ADMIN", "IT_SUPPORT"].includes(backendRole)) {
         router.push("/IT")
       } else {
         router.push("/employee")
       }
-
+    } catch {
+      clearAuthSession()
+      setError("Invalid email or password")
+    } finally {
       setLoading(false)
-    }, 800)
+    }
   }
 
   return (
@@ -154,10 +169,10 @@ export default function HomePage() {
 
           <div className="bg-blue-50 rounded-lg p-3 border border-blue-100">
             <p className="text-xs text-blue-700 font-medium mb-1">Credentials for testing:</p>
-            <p className="text-xs text-blue-600">HR: meera.hr@company.com | password123</p>
-            <p className="text-xs text-blue-600">IT Admin: admin@company.com | password123</p>
-            <p className="text-xs text-blue-600">IT Support: ravi.support@company.com | password123</p>
-            <p className="text-xs text-blue-600">Employee: john.employee@company.com | password123</p>
+            <p className="text-xs text-blue-600">HR: meera.hr@company.com | Hr123!</p>
+            <p className="text-xs text-blue-600">IT Admin: admin@company.com | Admin123!</p>
+            <p className="text-xs text-blue-600">IT Support: ravi.support@company.com | Support123!</p>
+            <p className="text-xs text-blue-600">Employee: john.employee@company.com | Employee123!</p>
           </div>
         </CardContent>
       </Card>

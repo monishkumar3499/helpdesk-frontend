@@ -1,6 +1,7 @@
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
-const USE_MOCK_API = process.env.NEXT_PUBLIC_USE_MOCK_API !== "false";
+const USE_MOCK_API = process.env.NEXT_PUBLIC_USE_MOCK_API === "true";
 const MOCK_DB_KEY = "helpdesk_mock_db_v1";
+const ACCESS_TOKEN_KEY = "access_token";
 
 type TicketStatus = "OPEN" | "IN_PROGRESS" | "RESOLVED" | "REJECTED";
 type TicketPriority = "CRITICAL" | "HIGH" | "LOW";
@@ -101,7 +102,7 @@ function createSeedData(): MockDb {
       title: "Asset request: 27 inch monitor",
       summary: "Need one monitor for reporting desk",
       issueType: "ASSET_REQUEST",
-      assetIssue: { assetCategory: "ASSET_REQUEST", assetClassification: "HARDWARE", requestedAssetName: "27 inch Monitor", assetId: null },
+      assetIssue: { assetCategory: "HARDWARE", assetClassification: "HARDWARE", requestedAssetName: "27 inch Monitor", assetId: null },
       status: "OPEN",
       priority: "LOW",
       department: "IT",
@@ -114,7 +115,7 @@ function createSeedData(): MockDb {
       title: "Asset problem: Cisco AP unstable",
       summary: "The access point restarts every hour",
       issueType: "ASSET_PROBLEM",
-      assetIssue: { assetCategory: "ASSET_PROBLEM", assetClassification: "NETWORK", assetId: "asset-6" },
+      assetIssue: { assetCategory: "NETWORK", assetClassification: "NETWORK", assetId: "asset-6" },
       status: "IN_PROGRESS",
       priority: "HIGH",
       department: "IT",
@@ -127,7 +128,7 @@ function createSeedData(): MockDb {
       title: "Asset request: docking station for hybrid setup",
       summary: "Need a USB-C docking station with dual display output for WFH days",
       issueType: "ASSET_REQUEST",
-      assetIssue: { assetCategory: "ASSET_REQUEST", assetClassification: "HARDWARE", requestedAssetName: "USB-C Docking Station", assetId: null },
+      assetIssue: { assetCategory: "HARDWARE", assetClassification: "HARDWARE", requestedAssetName: "USB-C Docking Station", assetId: null },
       status: "OPEN",
       priority: "HIGH",
       department: "IT",
@@ -140,7 +141,7 @@ function createSeedData(): MockDb {
       title: "Asset request: Adobe Acrobat Pro license",
       summary: "Requesting license for contract review and PDF redaction",
       issueType: "ASSET_REQUEST",
-      assetIssue: { assetCategory: "ASSET_REQUEST", assetClassification: "SOFTWARE", requestedAssetName: "Adobe Acrobat Pro", assetId: null },
+      assetIssue: { assetCategory: "SOFTWARE", assetClassification: "SOFTWARE", requestedAssetName: "Adobe Acrobat Pro", assetId: null },
       status: "IN_PROGRESS",
       priority: "LOW",
       department: "IT",
@@ -153,7 +154,7 @@ function createSeedData(): MockDb {
       title: "Asset problem: ThinkPad battery draining fast",
       summary: "Laptop battery drops from 100% to 40% in under an hour",
       issueType: "ASSET_PROBLEM",
-      assetIssue: { assetCategory: "ASSET_PROBLEM", assetClassification: "HARDWARE", assetId: "asset-3" },
+      assetIssue: { assetCategory: "HARDWARE", assetClassification: "HARDWARE", assetId: "asset-3" },
       status: "OPEN",
       priority: "CRITICAL",
       department: "IT",
@@ -166,7 +167,7 @@ function createSeedData(): MockDb {
       title: "Asset problem: M365 activation keeps failing",
       summary: "Office apps show activation required even after sign in",
       issueType: "ASSET_PROBLEM",
-      assetIssue: { assetCategory: "ASSET_PROBLEM", assetClassification: "SOFTWARE", assetId: "asset-4" },
+      assetIssue: { assetCategory: "SOFTWARE", assetClassification: "SOFTWARE", assetId: "asset-4" },
       status: "IN_PROGRESS",
       priority: "HIGH",
       department: "IT",
@@ -179,7 +180,7 @@ function createSeedData(): MockDb {
       title: "Asset request: replacement ergonomic keyboard",
       summary: "Current keyboard has multiple non-working keys; requesting replacement",
       issueType: "ASSET_REQUEST",
-      assetIssue: { assetCategory: "ASSET_REQUEST", assetClassification: "HARDWARE", requestedAssetName: "Ergonomic Keyboard", assetId: null },
+      assetIssue: { assetCategory: "HARDWARE", assetClassification: "HARDWARE", requestedAssetName: "Ergonomic Keyboard", assetId: null },
       status: "RESOLVED",
       priority: "LOW",
       department: "IT",
@@ -192,7 +193,7 @@ function createSeedData(): MockDb {
       title: "Asset request: 27 inch monitor",
       summary: "Need one monitor for reporting desk",
       issueType: "ASSET_REQUEST",
-      assetIssue: { assetCategory: "ASSET_REQUEST", assetClassification: "HARDWARE", requestedAssetName: "27 inch Monitor", assetId: null },
+      assetIssue: { assetCategory: "HARDWARE", assetClassification: "HARDWARE", requestedAssetName: "27 inch Monitor", assetId: null },
       status: "OPEN",
       priority: "LOW",
       department: "IT",
@@ -452,10 +453,26 @@ export async function apiFetch(
     return mockFetch(endpoint, options);
   }
 
+  const headers = new Headers(options?.headers ?? {});
+  if (options?.body && !headers.has("Content-Type")) {
+    headers.set("Content-Type", "application/json");
+  }
+
+  if (typeof window !== "undefined") {
+    const token = window.localStorage.getItem(ACCESS_TOKEN_KEY);
+    if (token) headers.set("Authorization", `Bearer ${token}`);
+  }
+
   const res = await fetch(`${BASE_URL}${endpoint}`, {
-    headers: { "Content-Type": "application/json" },
     ...options,
+    headers,
   });
-  if (!res.ok) throw new Error(`API error: ${res.status}`);
+
+  if (!res.ok) {
+    const text = await res.text();
+    const message = text || `API error: ${res.status}`;
+    throw new Error(message);
+  }
+
   return res.json();
 }

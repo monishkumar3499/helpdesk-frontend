@@ -19,9 +19,9 @@ export default function ITDashboardPage() {
     )
   }
 
-  const generalCount = state.tickets.filter((ticket) => ticket.issueType === "GENERAL").length
-  const assetRequestCount = state.tickets.filter((ticket) => ticket.issueType === "ASSET_REQUEST").length
-  const assetProblemCount = state.tickets.filter((ticket) => ticket.issueType === "ASSET_PROBLEM").length
+  const generalCount = state.tickets.filter((ticket) => !ticket.assetIssue).length
+  const assetProblemCount = state.tickets.filter((ticket) => !!ticket.assetIssue?.assetId?.trim()).length
+  const assetRequestCount = state.tickets.filter((ticket) => !!ticket.assetIssue && !ticket.assetIssue?.assetId?.trim()).length
 
   return (
     <div className="it-page-stack">

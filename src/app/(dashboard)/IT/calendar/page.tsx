@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { ChevronLeft, ChevronRight, CalendarDays, Sparkles } from "lucide-react"
-import { getCurrentUser, isITAdmin, normalizeTicket, type ITTicket } from "../_lib/it-shared"
+import { getCurrentUser, isITAdmin, normalizeTicket, toArrayResponse, type ITTicket } from "../_lib/it-shared"
 
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
 const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
@@ -28,7 +28,7 @@ export default function ITCalendarPage() {
   useEffect(() => {
     apiFetch("/tickets?department=IT", undefined, { forceBackend: true })
       .then((data) => {
-        const normalized = (data as unknown[]).map(normalizeTicket)
+        const normalized = toArrayResponse<unknown>(data).map(normalizeTicket)
         if (isITAdmin(currentUser?.role)) {
           setTickets(normalized)
           return

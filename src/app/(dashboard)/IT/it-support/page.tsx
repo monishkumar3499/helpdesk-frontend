@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react"
 import { apiFetch } from "@/lib/api"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { getCurrentUser, isITAdmin, normalizeTicket, type ITTicket, type ITUser } from "../_lib/it-shared"
+import { getCurrentUser, isITAdmin, normalizeTicket, toArrayResponse, type ITTicket, type ITUser } from "../_lib/it-shared"
 import { UsersRound, Wrench } from "lucide-react"
 
 type SupportStats = {
@@ -43,8 +43,8 @@ export default function ITSupportPage() {
       apiFetch("/tickets?department=IT", undefined, { forceBackend: true }),
     ])
       .then(([users, ticketData]) => {
-        setTeam((users as ITUser[]).filter((member) => member.isActive !== false))
-        setTickets((ticketData as unknown[]).map(normalizeTicket))
+        setTeam(toArrayResponse<ITUser>(users).filter((member) => member.isActive !== false))
+        setTickets(toArrayResponse<unknown>(ticketData).map(normalizeTicket))
       })
       .catch(() => {
         setTeam([])

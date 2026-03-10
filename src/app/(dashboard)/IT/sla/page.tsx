@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react"
 import { apiFetch } from "@/lib/api"
 import { Card, CardContent } from "@/components/ui/card"
-import { getCurrentUser, isITAdmin, normalizeTicket, type ITTicket } from "../_lib/it-shared"
+import { getCurrentUser, isITAdmin, normalizeTicket, toArrayResponse, type ITTicket } from "../_lib/it-shared"
 import { ShieldAlert, Sparkles } from "lucide-react"
 
 type SLAStatus = "On Track" | "At Risk" | "Breached" | "Resolved"
@@ -52,7 +52,7 @@ export default function ITSlaPage() {
   useEffect(() => {
     apiFetch("/tickets?department=IT", undefined, { forceBackend: true })
       .then((data) => {
-        const normalized = (data as unknown[]).map(normalizeTicket)
+        const normalized = toArrayResponse<unknown>(data).map(normalizeTicket)
         const scoped = isITAdmin(currentUser?.role)
           ? normalized
           : normalized.filter((ticket) => {

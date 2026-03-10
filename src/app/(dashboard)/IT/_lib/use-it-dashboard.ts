@@ -17,6 +17,19 @@ import {
 
 const ADMIN_ALERTS_KEY = "it_admin_alerts"
 
+function toArrayResponse<T>(payload: unknown): T[] {
+  if (Array.isArray(payload)) return payload as T[]
+  if (
+    payload
+    && typeof payload === "object"
+    && "data" in payload
+    && Array.isArray((payload as { data?: unknown }).data)
+  ) {
+    return (payload as { data: T[] }).data
+  }
+  return []
+}
+
 export function useITDashboard() {
   const currentUser = getCurrentUser()
   const [tickets, setTickets] = useState<ITTicket[]>([])
@@ -44,9 +57,11 @@ export function useITDashboard() {
       apiFetch("/users?role=IT_SUPPORT", undefined, { forceBackend: true }),
     ])
       .then(([ticketData, assetData, userData]) => {
-        const normalizedTickets = (ticketData as unknown[]).map(normalizeTicket)
-        setAssets(assetData.map(normalizeAsset))
-        const activeTeam = (userData as ITUser[]).filter((member) => member.isActive !== false)
+        const normalizedTickets = toArrayResponse<unknown>(ticketData).map(normalizeTicket)
+        const normalizedAssets = toArrayResponse<unknown>(assetData).map(normalizeAsset)
+        const activeTeam = toArrayResponse<ITUser>(userData).filter((member) => member.isActive !== false)
+
+        setAssets(normalizedAssets)
         setTeam(activeTeam)
 
         if (isITAdmin(role)) {
@@ -64,7 +79,7 @@ export function useITDashboard() {
   }, [currentUser?.email, currentUser?.id, role])
 
   const categoryStats = useMemo(() => {
-    const counts = { SOFTWARE: 0, HARDWARE: 0, NETWORK: 0, ASSET_REQUEST: 0, GENERAL: 0 }
+    const counts = { SOFTWARE: 0, HARDWARE: 0, NETWORK: 0, GENERAL: 0 }
     tickets.forEach((ticket) => { counts[inferTicketCategory(ticket)] += 1 })
     return counts
   }, [tickets])

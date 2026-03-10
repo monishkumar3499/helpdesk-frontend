@@ -4,6 +4,7 @@ import { ReactNode, useEffect, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
+import { clearAuthSession, getAccessToken, getStoredUser } from "@/lib/auth"
 
 export default function HrLayout({ children }: { children: ReactNode }) {
   const router = useRouter()
@@ -11,15 +12,22 @@ export default function HrLayout({ children }: { children: ReactNode }) {
   const [sessionTime, setSessionTime] = useState(0)
 
   useEffect(() => {
-    // Gettingf user from localStorage
-    const stored = localStorage.getItem("user")
-    if (stored) {
-      const user = JSON.parse(stored)
-      setEmail(user.email)
-    } else {
-      // No user loagged in → redirect to login
-      router.push("/login")
+    const user = getStoredUser()
+    const token = getAccessToken()
+
+    if (!user || !token) {
+      clearAuthSession()
+      router.push("/")
+      return
     }
+
+    if (user.role !== "HR") {
+      clearAuthSession()
+      router.push("/")
+      return
+    }
+
+    setEmail(user.email || "")
 
     // Start session timer
     const timer = setInterval(() => {
@@ -27,7 +35,7 @@ export default function HrLayout({ children }: { children: ReactNode }) {
     }, 1000)
 
     return () => clearInterval(timer)
-  }, [])
+  }, [router])
 
   function formatTime(seconds: number) {
     const h = Math.floor(seconds / 3600)
@@ -39,7 +47,7 @@ export default function HrLayout({ children }: { children: ReactNode }) {
   }
 
   function handleLogout() {
-    localStorage.removeItem("user")
+    clearAuthSession()
     router.push("/")
   }
 

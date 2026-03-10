@@ -1,3 +1,5 @@
+import { getStoredUser } from "@/lib/auth"
+
 export type ITAccessRole = "IT_ADMIN" | "IT_SUPPORT"
 
 export function normalizeITRole(role?: string): ITAccessRole {
@@ -18,20 +20,11 @@ export function isAnyITRole(role?: string): boolean {
 }
 
 export function getCurrentUser(): { email?: string; role?: string; id?: string } | null {
-  if (typeof window === "undefined") return null
-  const raw = localStorage.getItem("user")
-  if (!raw) return null
-  try { return JSON.parse(raw) } catch { return null }
+  return getStoredUser()
 }
 
 export function getSessionInfo() {
-  if (typeof window === "undefined") return { email: "", role: "IT_SUPPORT" }
-  const stored = localStorage.getItem("user")
-  if (!stored) return { email: "", role: "IT_SUPPORT" }
-  try {
-    const parsed = JSON.parse(stored)
-    return { email: parsed.email || "", role: normalizeITRole(parsed.role) }
-  } catch {
-    return { email: "", role: "IT_SUPPORT" }
-  }
+  const user = getStoredUser()
+  if (!user) return { email: "", role: "IT_SUPPORT" }
+  return { email: user.email || "", role: normalizeITRole(user.role) }
 }

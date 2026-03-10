@@ -7,7 +7,6 @@ export function ITDashboardCategories({ categoryStats, totalTickets }: Props) {
     SOFTWARE: "from-indigo-500 to-blue-500",
     HARDWARE: "from-cyan-500 to-sky-500",
     NETWORK: "from-violet-500 to-fuchsia-500",
-    ASSET_REQUEST: "from-amber-500 to-orange-500",
     GENERAL: "from-slate-500 to-slate-700",
   }
 

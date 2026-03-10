@@ -5,7 +5,7 @@ import { apiFetch } from "@/lib/api"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Activity, AlertTriangle, BarChart3, CheckCircle2, PieChart, Sparkles, TrendingUp } from "lucide-react"
-import { getCurrentUser, inferTicketCategory, isITAdmin, normalizeTicket, type ITTicket } from "../_lib/it-shared"
+import { getCurrentUser, inferTicketCategory, isITAdmin, normalizeTicket, toArrayResponse, type ITTicket } from "../_lib/it-shared"
 
 function HorizontalBars({ data, maxVal }: { data: { label: string; value: number; color: string }[]; maxVal: number }) {
   return (
@@ -31,7 +31,7 @@ export default function ITReportsPage() {
   useEffect(() => {
     apiFetch("/tickets?department=IT", undefined, { forceBackend: true })
       .then((data) => {
-        const normalized = (data as unknown[]).map(normalizeTicket)
+        const normalized = toArrayResponse<unknown>(data).map(normalizeTicket)
         if (isITAdmin(currentUser?.role)) {
           setTickets(normalized)
           return

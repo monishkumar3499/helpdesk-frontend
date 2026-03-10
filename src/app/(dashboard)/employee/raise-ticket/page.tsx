@@ -21,6 +21,19 @@ type AssetLite = {
   assignedToId?: string | null
 }
 
+function toArrayResponse<T>(payload: unknown): T[] {
+  if (Array.isArray(payload)) return payload as T[]
+  if (
+    payload
+    && typeof payload === "object"
+    && "data" in payload
+    && Array.isArray((payload as { data?: unknown }).data)
+  ) {
+    return (payload as { data: T[] }).data
+  }
+  return []
+}
+
 function getCurrentUser() {
   if (typeof window === "undefined") return null as { id?: string; email?: string } | null
   try {
@@ -47,7 +60,7 @@ export default function RaiseTicketPage() {
 
   useEffect(() => {
     apiFetch("/assets")
-      .then((data) => setAssets(data as AssetLite[]))
+      .then((data) => setAssets(toArrayResponse<AssetLite>(data)))
       .catch(() => setAssets([]))
   }, [])
 
@@ -66,7 +79,6 @@ export default function RaiseTicketPage() {
 
   async function submitTicket() {
     if (!title.trim() || !summary.trim()) return
-    if (issueType === "ASSET_REQUEST" && !requestAssetId) return
     if (issueType === "ASSET_PROBLEM" && !problemAssetId) return
 
     setLoading(true)
@@ -85,10 +97,10 @@ export default function RaiseTicketPage() {
           assetIssue: issueType === "GENERAL"
             ? null
             : {
-              assetCategory: issueType,
+              assetCategory: classification,
               assetClassification: classification,
-              requestedAssetName: issueType === "ASSET_REQUEST" ? (requestedAsset?.assetName || assetSearch) : null,
-              assetId: issueType === "ASSET_REQUEST" ? requestAssetId : problemAssetId,
+              requestedAssetName: issueType === "ASSET_REQUEST" ? (requestedAsset?.assetName || assetSearch || null) : null,
+              assetId: issueType === "ASSET_PROBLEM" ? problemAssetId : null,
             },
         }),
       })

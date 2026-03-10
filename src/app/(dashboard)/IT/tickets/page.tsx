@@ -9,8 +9,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
-import { getCurrentUser, inferTicketCategory, isITAdmin, normalizeAsset, normalizeITRole, normalizeTicket, type ITAsset, type ITTicket, type ITUser } from "../_lib/it-shared"
-import { Cog, PackageCheck, ShieldCheck, Sparkles, Wrench } from "lucide-react"
+import { getCurrentUser, inferTicketCategory, isITAdmin, normalizeAsset, normalizeITRole, normalizeTicket, resolveTicketIssueType, type ITAsset, type ITTicket, type ITUser, type TicketIssueType } from "../_lib/it-shared"
+import { AlertTriangle, Cog, PackageCheck, ShieldCheck, Sparkles, Wrench } from "lucide-react"
 
 
 const STATUS_COLOR: Record<string, string> = {
@@ -25,12 +25,36 @@ const PRIORITY_COLOR: Record<string, string> = {
   LOW: "bg-blue-100 text-blue-700 border-blue-200",
 }
 
+const IT_CATEGORIES = ["ALL", "HARDWARE", "SOFTWARE", "NETWORK"] as const
+const ISSUE_TYPE_FILTERS = ["ALL", "GENERAL", "ASSET_REQUEST", "ASSET_PROBLEM"] as const
+
+function toAssetClassification(value?: string | null): "HARDWARE" | "SOFTWARE" | "NETWORK" {
+  const normalized = value?.trim().toUpperCase()
+  if (normalized === "SOFTWARE") return "SOFTWARE"
+  if (normalized === "NETWORK") return "NETWORK"
+  return "HARDWARE"
+}
+
+function toArrayResponse<T>(payload: unknown): T[] {
+  if (Array.isArray(payload)) return payload as T[]
+  if (
+    payload
+    && typeof payload === "object"
+    && "data" in payload
+    && Array.isArray((payload as { data?: unknown }).data)
+  ) {
+    return (payload as { data: T[] }).data
+  }
+  return []
+}
+
 export default function ITTicketsPage() {
   const [tickets, setTickets] = useState<ITTicket[]>([])
   const [assets, setAssets] = useState<ITAsset[]>([])
   const [team, setTeam] = useState<ITUser[]>([])
   const [selected, setSelected] = useState<ITTicket | null>(null)
   const [category, setCategory] = useState("ALL")
+  const [issueTypeFilter, setIssueTypeFilter] = useState<(typeof ISSUE_TYPE_FILTERS)[number]>("ALL")
   const [loading, setLoading] = useState(true)
   const [comment, setComment] = useState("")
   const [selectedAssetId, setSelectedAssetId] = useState("")
@@ -45,9 +69,9 @@ export default function ITTicketsPage() {
       apiFetch("/assets", undefined, { forceBackend: true }),
     ])
       .then(([ticketData, userData, assetData]) => {
-        setTickets((ticketData as unknown[]).map(normalizeTicket))
-        setTeam((userData as ITUser[]).filter((member) => member.isActive !== false))
-        setAssets((assetData as unknown[]).map(normalizeAsset))
+        setTickets(toArrayResponse<unknown>(ticketData).map(normalizeTicket))
+        setTeam(toArrayResponse<ITUser>(userData).filter((member) => member.isActive !== false))
+        setAssets(toArrayResponse<unknown>(assetData).map(normalizeAsset))
       })
       .catch(() => {
         setTickets([])
@@ -66,15 +90,18 @@ export default function ITTicketsPage() {
   }, [isAdmin, currentUser?.id, currentUser?.email, team])
 
   const categories = useMemo(
-    () => ["ALL", ...Array.from(new Set(tickets.map((ticket) => inferTicketCategory(ticket))))],
-    [tickets],
+    () => [...IT_CATEGORIES],
+    [],
   )
 
   const visibleTickets = useMemo(() => {
     const base = isAdmin ? tickets : (currentMemberId ? tickets.filter((ticket) => ticket.assignedToId === currentMemberId) : [])
-    if (category === "ALL") return base
-    return base.filter((ticket) => inferTicketCategory(ticket) === category)
-  }, [tickets, isAdmin, currentMemberId, category])
+    return base.filter((ticket) => {
+      if (category !== "ALL" && inferTicketCategory(ticket) !== category) return false
+      if (issueTypeFilter !== "ALL" && resolveTicketIssueType(ticket) !== issueTypeFilter) return false
+      return true
+    })
+  }, [tickets, isAdmin, currentMemberId, category, issueTypeFilter])
 
   const openCount = visibleTickets.filter((ticket) => ticket.status === "OPEN").length
   const inProgressCount = visibleTickets.filter((ticket) => ticket.status === "IN_PROGRESS").length
@@ -117,39 +144,51 @@ export default function ITTicketsPage() {
   }
 
   async function handleAssignAsset() {
-    if (!selected || selected.issueType !== "ASSET_REQUEST" || !selectedAssetId || !selected.createdById) return
+    const selectedIssueType = selected ? resolveTicketIssueType(selected) : "GENERAL"
+    if (!selected || selectedIssueType !== "ASSET_REQUEST" || !selectedAssetId || !selected.createdById) return
+
+    const assignedAsset = assets.find((asset) => asset.id === selectedAssetId)
+    const assignedCategory = toAssetClassification(
+      assignedAsset?.assetType || selected.assetIssue?.assetClassification || selected.assetIssue?.assetCategory,
+    )
 
     await patchAsset(selectedAssetId, { assetStatus: "ASSIGNED", assignedToId: selected.createdById })
     const nextAssetIssue = {
       ...(selected.assetIssue || {}),
       assetId: selectedAssetId,
-      assetCategory: "ASSET_REQUEST",
+      assetCategory: assignedCategory,
+      assetClassification: assignedCategory,
     }
-    await patchTicket(selected.id, { assetIssue: nextAssetIssue, status: "RESOLVED" })
+    await patchTicket(selected.id, { assetIssue: nextAssetIssue })
     setTickets((prev) => prev.map((ticket) => (
-      ticket.id === selected.id ? { ...ticket, assetIssue: nextAssetIssue, status: "RESOLVED" } : ticket
+      ticket.id === selected.id ? { ...ticket, assetIssue: nextAssetIssue } : ticket
     )))
-    setSelected((prev) => (prev ? { ...prev, assetIssue: nextAssetIssue, status: "RESOLVED" } : prev))
+    setSelected((prev) => (prev ? { ...prev, assetIssue: nextAssetIssue } : prev))
     setAssets((prev) => prev.map((asset) => (
       asset.id === selectedAssetId ? { ...asset, assetStatus: "ASSIGNED", assignedToId: selected.createdById } : asset
     )))
   }
 
-  async function handleMarkMaintenance() {
-    if (!selected || selected.issueType !== "ASSET_PROBLEM") return
-    const targetAssetId = selected.assetIssue?.assetId
-    if (!targetAssetId) return
+  async function handleAssetProblemStateChange(nextAssetStatus: ITAsset["assetStatus"]) {
+    const selectedIssueType = selected ? resolveTicketIssueType(selected) : "GENERAL"
+    if (!selected || selectedIssueType !== "ASSET_PROBLEM") return
+    const targetAsset = assets.find((asset) => {
+      if (selected.assetIssue?.assetId && asset.id === selected.assetIssue.assetId) return true
+      if (selected.assetIssue?.assetSerial && asset.serialNumber === selected.assetIssue.assetSerial) return true
+      return false
+    })
+    if (!targetAsset) return
+    const targetAssetId = targetAsset.id
 
-    const current = assets.find((asset) => asset.id === targetAssetId)
-    if (!current) return
-
-    const nextAssetStatus = current.assetStatus === "MAINTENANCE"
-      ? (current.assignedToId ? "ASSIGNED" : "AVAILABLE")
-      : "MAINTENANCE"
-
-    await patchAsset(targetAssetId, { assetStatus: nextAssetStatus })
+    const payload: Record<string, string | null> = { assetStatus: nextAssetStatus }
+    if (nextAssetStatus === "ASSIGNED" && selected.createdById) {
+      payload.assignedToId = selected.createdById
+    }
+    await patchAsset(targetAssetId, payload)
     setAssets((prev) => prev.map((asset) => (
-      asset.id === targetAssetId ? { ...asset, assetStatus: nextAssetStatus } : asset
+      asset.id === targetAssetId
+        ? { ...asset, assetStatus: nextAssetStatus, assignedToId: nextAssetStatus === "ASSIGNED" ? (selected.createdById || asset.assignedToId || null) : asset.assignedToId }
+        : asset
     )))
     setTickets((prev) => prev.map((ticket) => (
       ticket.id === selected.id ? { ...ticket, status: "IN_PROGRESS" } : ticket
@@ -158,23 +197,37 @@ export default function ITTicketsPage() {
   }
 
   const selectedAssignableAssets = useMemo(() => {
-    if (!selected || selected.issueType !== "ASSET_REQUEST") return []
-    const wantedName = selected.assetIssue?.requestedAssetName?.toLowerCase() || ""
-    const wantedClass = selected.assetIssue?.assetClassification
-    return assets.filter((asset) => {
-      if (asset.assetStatus !== "AVAILABLE") return false
-      if (wantedClass && asset.assetType !== wantedClass) return false
-      if (wantedName && !asset.assetName.toLowerCase().includes(wantedName)) return false
-      return true
-    })
+    if (!selected || resolveTicketIssueType(selected) !== "ASSET_REQUEST") return []
+    const wantedCategory = selected.assetIssue?.assetCategory?.trim().toUpperCase()
+    if (wantedCategory !== "HARDWARE" && wantedCategory !== "SOFTWARE" && wantedCategory !== "NETWORK") return []
+
+    return assets.filter((asset) => (
+      asset.assetStatus === "AVAILABLE" && asset.assetType === wantedCategory
+    ))
   }, [assets, selected])
 
   const selectedProblemAsset = useMemo(() => {
-    if (!selected || selected.issueType !== "ASSET_PROBLEM") return null
-    const assetId = selected.assetIssue?.assetId
-    if (!assetId) return null
-    return assets.find((asset) => asset.id === assetId) || null
+    if (!selected || resolveTicketIssueType(selected) !== "ASSET_PROBLEM") return null
+    return assets.find((asset) => {
+      if (selected.assetIssue?.assetId && asset.id === selected.assetIssue.assetId) return true
+      if (selected.assetIssue?.assetSerial && asset.serialNumber === selected.assetIssue.assetSerial) return true
+      return false
+    }) || null
   }, [assets, selected])
+
+  const selectedIssueType = selected ? resolveTicketIssueType(selected) : "GENERAL"
+
+  function getIssueTypeLabel(issueType: TicketIssueType) {
+    if (issueType === "ASSET_REQUEST") return "Asset Request"
+    if (issueType === "ASSET_PROBLEM") return "Asset Problem"
+    return "General"
+  }
+
+  function getIssueTypeCardStyle(issueType: TicketIssueType) {
+    if (issueType === "ASSET_REQUEST") return "border-emerald-300 bg-emerald-50/50 shadow-emerald-100"
+    if (issueType === "ASSET_PROBLEM") return "border-amber-300 bg-amber-50/50 shadow-amber-100"
+    return "border-slate-200 bg-white shadow-slate-100"
+  }
 
   if (loading) {
     return (
@@ -203,6 +256,12 @@ export default function ITTicketsPage() {
                 {categories.map((item) => <SelectItem key={item} value={item}>{item.replace("_", " ")}</SelectItem>)}
               </SelectContent>
             </Select>
+            <Select value={issueTypeFilter} onValueChange={(value) => setIssueTypeFilter(value as (typeof ISSUE_TYPE_FILTERS)[number])}>
+              <SelectTrigger className="w-56 border-white/20 bg-white/10 text-white"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {ISSUE_TYPE_FILTERS.map((item) => <SelectItem key={item} value={item}>{item.replace("_", " ")}</SelectItem>)}
+              </SelectContent>
+            </Select>
             <div className="hidden md:flex items-center gap-2 rounded-xl border border-white/20 bg-white/10 px-3 py-2 text-xs">
               <ShieldCheck className="h-4 w-4 text-emerald-300" />
               Active Queue
@@ -228,10 +287,12 @@ export default function ITTicketsPage() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-        {visibleTickets.map((ticket) => (
+        {visibleTickets.map((ticket) => {
+          const issueType = resolveTicketIssueType(ticket)
+          return (
           <Card
             key={ticket.id}
-            className={`cursor-pointer border it-hover-card ${ticket.issueType === "ASSET_REQUEST" ? "border-emerald-200 bg-emerald-50/30" : ticket.issueType === "ASSET_PROBLEM" ? "border-amber-200 bg-amber-50/30" : "border-slate-200"}`}
+            className={`cursor-pointer border it-hover-card ${getIssueTypeCardStyle(issueType)}`}
             onClick={() => {
               setSelected(ticket)
               setSelectedAssetId(ticket.assetIssue?.assetId || "")
@@ -240,9 +301,12 @@ export default function ITTicketsPage() {
             <CardHeader className="pb-2 px-5 pt-5">
               <CardTitle className="flex items-center justify-between text-sm">
                 <span className="font-semibold text-slate-700">{ticket.title}</span>
-                <span className={`it-pill ${STATUS_COLOR[ticket.status] || "bg-slate-100 text-slate-700"}`}>
-                  {ticket.status.replace("_", " ")}
-                </span>
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline" className="it-pill border-slate-200 bg-white text-slate-700">{getIssueTypeLabel(issueType)}</Badge>
+                  <span className={`it-pill ${STATUS_COLOR[ticket.status] || "bg-slate-100 text-slate-700"}`}>
+                    {ticket.status.replace("_", " ")}
+                  </span>
+                </div>
               </CardTitle>
             </CardHeader>
             <CardContent className="it-card-pad space-y-3 pt-0">
@@ -258,15 +322,33 @@ export default function ITTicketsPage() {
                 </div>
               </div>
               <p className="text-xs text-slate-500 line-clamp-2">{ticket.summary}</p>
-              {ticket.issueType && ticket.issueType !== "GENERAL" && (
-                <div className="space-y-1 rounded-md border border-slate-200 bg-white px-2.5 py-2">
-                  <p className="text-[11px] text-slate-500">Asset Issue Type</p>
-                  <p className="text-xs font-semibold text-slate-700">{ticket.issueType === "ASSET_REQUEST" ? "Asset Request" : "Asset Problem"}</p>
-                  <div className="flex items-center gap-2 text-[11px] text-slate-600">
-                    <Badge variant="outline" className="it-pill">{ticket.assetIssue?.assetClassification || "N/A"}</Badge>
-                    {ticket.assetIssue?.requestedAssetName && <span>{ticket.assetIssue.requestedAssetName}</span>}
-                    {ticket.assetIssue?.assetId && <span>Asset ID: {ticket.assetIssue.assetId.slice(0, 8)}</span>}
+              {issueType === "GENERAL" && (
+                <div className="rounded-md border border-slate-200 bg-slate-50 px-2.5 py-2">
+                  <p className="text-[11px] font-medium text-slate-600">General IT Issue</p>
+                  <p className="text-[11px] text-slate-500">No asset mapping required for this ticket.</p>
+                </div>
+              )}
+              {issueType === "ASSET_REQUEST" && (
+                <div className="space-y-1 rounded-md border border-emerald-200 bg-white px-2.5 py-2">
+                  <p className="text-[11px] text-slate-500">Request Name</p>
+                  <p className="text-xs font-semibold text-slate-700">{ticket.assetIssue?.requestedAssetName || "N/A"}</p>
+                  <div className="grid grid-cols-2 gap-2 text-[11px] text-slate-600">
+                    <span>Category: {ticket.assetIssue?.assetCategory || "N/A"}</span>
+                    <span>Class: {ticket.assetIssue?.assetClassification || "N/A"}</span>
                   </div>
+                </div>
+              )}
+              {issueType === "ASSET_PROBLEM" && (
+                <div className="space-y-1 rounded-md border border-amber-200 bg-white px-2.5 py-2">
+                  <p className="text-[11px] inline-flex items-center gap-1 font-medium text-amber-700"><AlertTriangle className="h-3.5 w-3.5" />Asset Problem</p>
+                  <p className="text-[11px] text-slate-500">Request Name</p>
+                  <p className="text-xs font-semibold text-slate-700">{ticket.assetIssue?.requestedAssetName || "N/A"}</p>
+                  <div className="grid grid-cols-2 gap-2 text-[11px] text-slate-600">
+                    <span>Category: {ticket.assetIssue?.assetCategory || "N/A"}</span>
+                    <span>Class: {ticket.assetIssue?.assetClassification || "N/A"}</span>
+                  </div>
+                  <p className="text-[11px] text-slate-600">Asset ID: {ticket.assetIssue?.assetId || "N/A"}</p>
+                  <p className="text-[11px] text-slate-600">Asset Serial: {ticket.assetIssue?.assetSerial || "N/A"}</p>
                 </div>
               )}
               <div className="flex items-center justify-between">
@@ -277,7 +359,8 @@ export default function ITTicketsPage() {
               </div>
             </CardContent>
           </Card>
-        ))}
+          )
+        })}
       </div>
 
       <Dialog open={!!selected} onOpenChange={closeModal}>
@@ -311,17 +394,20 @@ export default function ITTicketsPage() {
                 <div className="flex justify-between text-sm"><span className="text-slate-500">Assigned</span><span className="font-medium">{selected.assignedTo?.name || team.find((member) => member.id === selected.assignedToId)?.name || "Unassigned"}</span></div>
               </div>
 
-              {selected.issueType && selected.issueType !== "GENERAL" && (
+              {selectedIssueType !== "GENERAL" && (
                 <div className="bg-emerald-50 rounded-lg border border-emerald-100 p-4 space-y-2">
                   <p className="text-xs font-medium text-emerald-700">Asset Issue Details</p>
-                  <div className="flex justify-between text-sm"><span className="text-slate-500">Issue Type</span><span className="font-medium">{selected.issueType === "ASSET_REQUEST" ? "Asset Request" : "Asset Problem"}</span></div>
+                  <div className="flex justify-between text-sm"><span className="text-slate-500">Issue Type</span><span className="font-medium">{selectedIssueType === "ASSET_REQUEST" ? "Asset Request" : "Asset Problem"}</span></div>
+                  <div className="flex justify-between text-sm"><span className="text-slate-500">Category</span><span className="font-medium">{selected.assetIssue?.assetCategory || "N/A"}</span></div>
                   <div className="flex justify-between text-sm"><span className="text-slate-500">Classification</span><span className="font-medium">{selected.assetIssue?.assetClassification || "N/A"}</span></div>
-                  {selected.issueType === "ASSET_REQUEST" && (
-                    <div className="flex justify-between text-sm"><span className="text-slate-500">Requested Asset</span><span className="font-medium">{selected.assetIssue?.requestedAssetName || "N/A"}</span></div>
+                  {selectedIssueType === "ASSET_REQUEST" && (
+                    <div className="flex justify-between text-sm"><span className="text-slate-500">Request Name</span><span className="font-medium">{selected.assetIssue?.requestedAssetName || "N/A"}</span></div>
                   )}
-                  {selected.issueType === "ASSET_PROBLEM" && (
+                  {selectedIssueType === "ASSET_PROBLEM" && (
                     <>
+                      <div className="flex justify-between text-sm"><span className="text-slate-500">Request Name</span><span className="font-medium">{selected.assetIssue?.requestedAssetName || "N/A"}</span></div>
                       <div className="flex justify-between text-sm"><span className="text-slate-500">Asset ID</span><span className="font-medium">{selected.assetIssue?.assetId || "N/A"}</span></div>
+                      <div className="flex justify-between text-sm"><span className="text-slate-500">Asset Serial</span><span className="font-medium">{selected.assetIssue?.assetSerial || "N/A"}</span></div>
                       <div className="flex justify-between text-sm"><span className="text-slate-500">Asset Status</span><span className="font-medium">{selectedProblemAsset?.assetStatus || "Unknown"}</span></div>
                     </>
                   )}
@@ -333,7 +419,7 @@ export default function ITTicketsPage() {
                 <p className="text-sm text-slate-800">{selected.summary || "No details provided."}</p>
               </div>
 
-              {!isAdmin && selected.status !== "RESOLVED" && (
+              {selected.status !== "RESOLVED" && (
                 <div>
                   <p className="text-xs text-slate-500 mb-1 font-medium">Internal Comment (optional)</p>
                   <Textarea
@@ -347,32 +433,42 @@ export default function ITTicketsPage() {
               )}
 
               <div className="flex gap-2 pt-1">
-                {!isAdmin && selected.status === "OPEN" && (
+                {selected.status === "OPEN" && (
                   <Button variant="outline" className="flex-1 text-amber-700 border-amber-200 hover:bg-amber-50" onClick={() => handleStatus("IN_PROGRESS")}>
                     Accept
                   </Button>
                 )}
-                {!isAdmin && selected.status === "IN_PROGRESS" && (
+                {selected.status === "IN_PROGRESS" && (
                   <Button className="flex-1 bg-green-600 hover:bg-green-700" onClick={() => handleStatus("RESOLVED")}>
                     Resolve
                   </Button>
                 )}
-                {!isAdmin && selected.status === "IN_PROGRESS" && selected.issueType === "ASSET_REQUEST" && (
+                {selected.status === "IN_PROGRESS" && selectedIssueType === "ASSET_REQUEST" && (
                   <Button variant="outline" className="flex-1 border-emerald-200 text-emerald-700 hover:bg-emerald-50" onClick={handleAssignAsset} disabled={!selectedAssetId}>
                     <PackageCheck className="mr-1 h-4 w-4" />
                     Assign Asset
                   </Button>
                 )}
-                {!isAdmin && selected.status === "IN_PROGRESS" && selected.issueType === "ASSET_PROBLEM" && (
-                  <Button variant="outline" className="flex-1 border-amber-200 text-amber-700 hover:bg-amber-50" onClick={handleMarkMaintenance} disabled={!selected.assetIssue?.assetId}>
+                {selected.status === "IN_PROGRESS" && selectedIssueType === "ASSET_PROBLEM" && (
+                  <Button variant="outline" className="flex-1 border-amber-200 text-amber-700 hover:bg-amber-50" onClick={() => handleAssetProblemStateChange("MAINTENANCE")} disabled={!selectedProblemAsset}>
                     <Wrench className="mr-1 h-4 w-4" />
-                    {selectedProblemAsset?.assetStatus === "MAINTENANCE" ? "Remove Maintenance" : "Mark Maintenance"}
+                    Maintenance
                   </Button>
                 )}
-                {isAdmin && <p className="w-full rounded-md bg-slate-100 px-3 py-2 text-center text-sm text-slate-600">IT Admin has read-only access in ticket details.</p>}
+                {selected.status === "IN_PROGRESS" && selectedIssueType === "ASSET_PROBLEM" && (
+                  <Button variant="outline" className="flex-1 border-slate-300 text-slate-700 hover:bg-slate-50" onClick={() => handleAssetProblemStateChange("RETIRED")} disabled={!selectedProblemAsset}>
+                    Retired
+                  </Button>
+                )}
+                {selected.status === "IN_PROGRESS" && selectedIssueType === "ASSET_PROBLEM" && (
+                  <Button variant="outline" className="flex-1 border-blue-200 text-blue-700 hover:bg-blue-50" onClick={() => handleAssetProblemStateChange("ASSIGNED")} disabled={!selectedProblemAsset}>
+                    Assigned Back
+                  </Button>
+                )}
+                {isAdmin && selected.status !== "IN_PROGRESS" && <p className="w-full rounded-md bg-slate-100 px-3 py-2 text-center text-sm text-slate-600">Move ticket to In Progress to take asset actions.</p>}
               </div>
 
-              {!isAdmin && selected.status === "IN_PROGRESS" && selected.issueType === "ASSET_REQUEST" && (
+              {selected.status === "IN_PROGRESS" && selectedIssueType === "ASSET_REQUEST" && (
                 <div className="space-y-1">
                   <p className="text-xs text-slate-500 font-medium">Assign matching asset</p>
                   <Select value={selectedAssetId} onValueChange={setSelectedAssetId}>

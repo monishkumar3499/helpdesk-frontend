@@ -10,6 +10,19 @@ import { ITLowStockAlerts } from "../_components/it-low-stock-alerts"
 import { ASSET_THRESHOLDS, normalizeAsset, type ITAsset } from "../_lib/it-shared"
 import { Boxes, Sparkles } from "lucide-react"
 
+function toArrayResponse<T>(payload: unknown): T[] {
+  if (Array.isArray(payload)) return payload as T[]
+  if (
+    payload
+    && typeof payload === "object"
+    && "data" in payload
+    && Array.isArray((payload as { data?: unknown }).data)
+  ) {
+    return (payload as { data: T[] }).data
+  }
+  return []
+}
+
 export default function ITAssetsPage() {
   const [assets, setAssets] = useState<ITAsset[]>([])
   const [loading, setLoading] = useState(true)
@@ -20,7 +33,7 @@ export default function ITAssetsPage() {
 
   useEffect(() => {
     apiFetch("/assets", undefined, { forceBackend: true })
-      .then((data) => setAssets(data.map(normalizeAsset)))
+      .then((data) => setAssets(toArrayResponse<unknown>(data).map(normalizeAsset)))
       .catch(() => setAssets([]))
       .finally(() => setLoading(false))
   }, [])

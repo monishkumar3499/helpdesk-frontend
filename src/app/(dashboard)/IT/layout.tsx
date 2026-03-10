@@ -5,6 +5,7 @@ import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { clearAuthSession, getAccessToken, getStoredUser } from "@/lib/auth"
 import { getSessionInfo, isAnyITRole, isITAdmin, isITSupport } from "./_lib/it-session"
 
 export default function ITLayout({ children }: { children: ReactNode }) {
@@ -20,10 +21,16 @@ export default function ITLayout({ children }: { children: ReactNode }) {
     setSessionInfo(getSessionInfo())
     setTodayLabel(new Date().toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long" }))
 
-    const stored = localStorage.getItem("user")
-    if (!stored) return router.push("/")
-    const parsed = JSON.parse(stored)
-    if (!isAnyITRole(parsed.role)) router.push("/")
+    const storedUser = getStoredUser()
+    const token = getAccessToken()
+    if (!storedUser || !token) {
+      clearAuthSession()
+      return router.push("/")
+    }
+    if (!isAnyITRole(storedUser.role)) {
+      clearAuthSession()
+      router.push("/")
+    }
 
     const timer = setInterval(() => {
       setSessionTime((prev) => prev + 1)
@@ -104,7 +111,16 @@ export default function ITLayout({ children }: { children: ReactNode }) {
             <span className="text-sm text-slate-500 hidden md:block">
               {todayLabel}
             </span>
-            <Button variant="outline" className="text-red-600 border-red-200 hover:bg-red-50" onClick={() => { localStorage.removeItem("user"); router.push("/") }}>Logout</Button>
+            <Button
+              variant="outline"
+              className="text-red-600 border-red-200 hover:bg-red-50"
+              onClick={() => {
+                clearAuthSession()
+                router.push("/")
+              }}
+            >
+              Logout
+            </Button>
           </div>
         </header>
         <main className="flex-1 p-6 overflow-auto transition-colors duration-300">{children}</main>

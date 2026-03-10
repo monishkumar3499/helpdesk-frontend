@@ -21,6 +21,9 @@ type RawAsset = Partial<ITAsset> & { id?: string; serialNumber?: string; assetNa
 export const PRIORITY_DEADLINE_DAYS: Record<TicketPriority, number> = { CRITICAL: 1, HIGH: 3, LOW: 7 }
 export const ASSET_THRESHOLDS: Record<ITAsset["assetType"], number> = { HARDWARE: 5, SOFTWARE: 5, NETWORK: 3 }
 
+const NETWORK_KEYWORDS = ["network", "wifi", "wi-fi", "vpn", "lan", "wan", "router", "switch", "internet"]
+const SOFTWARE_KEYWORDS = ["software", "application", "app", "license", "login", "email", "outlook", "teams", "excel", "word", "browser"]
+
 function hasText(value?: string | null): boolean {
   return typeof value === "string" && value.trim().length > 0
 }
@@ -29,32 +32,38 @@ function deriveIssueType(ticket: RawTicket): TicketIssueType {
   const issue = ticket.assetIssue
   if (!issue) return "GENERAL"
 
-  const category = issue.assetCategory?.trim().toUpperCase()
-  if (category === "ASSET_PROBLEM") return "ASSET_PROBLEM"
-  if (category === "ASSET_REQUEST") return "ASSET_REQUEST"
+  // Workflow rule: asset reference means problem, missing reference means request.
+  if (hasText(issue.assetId) || hasText(issue.assetSerial)) return "ASSET_PROBLEM"
+  return "ASSET_REQUEST"
+}
 
-  const hasAssetId = hasText(issue.assetId)
-  const hasRequestedAssetName = hasText(issue.requestedAssetName)
-  const hasCategory = hasText(issue.assetCategory)
-  const hasClassification = hasText(issue.assetClassification)
-
-  if (hasAssetId && hasRequestedAssetName && hasCategory && hasClassification) return "ASSET_PROBLEM"
-  if (!hasAssetId && hasRequestedAssetName && hasCategory && hasClassification) return "ASSET_REQUEST"
-  if (hasAssetId) return "ASSET_PROBLEM"
-  if (hasRequestedAssetName) return "ASSET_REQUEST"
-  return "GENERAL"
+export function resolveTicketIssueType(ticket: Pick<ITTicket, "issueType" | "assetIssue">): TicketIssueType {
+  if (ticket.issueType === "GENERAL" || ticket.issueType === "ASSET_REQUEST" || ticket.issueType === "ASSET_PROBLEM") {
+    return ticket.issueType
+  }
+  return deriveIssueType(ticket as RawTicket)
 }
 
 export function normalizeTicket(raw: unknown): ITTicket {
   const ticket = (raw ?? {}) as RawTicket
   const assignedToId = ticket.assignedToId ?? ticket.assignedTo?.id ?? ticket.assignedTo?._id ?? null
+  const resolvedIssueType = resolveTicketIssueType(ticket as Pick<ITTicket, "issueType" | "assetIssue">)
   return {
     id: ticket.id || ticket._id || "",
     title: ticket.title || "Untitled Ticket",
     summary: ticket.summary || "",
     department: ticket.department || "IT",
-    issueType: ticket.issueType || deriveIssueType(ticket),
-    assetIssue: ticket.assetIssue || null,
+    issueType: resolvedIssueType,
+    assetIssue: ticket.assetIssue
+      ? {
+        ...ticket.assetIssue,
+        assetId: ticket.assetIssue.assetId ?? null,
+        assetSerial: ticket.assetIssue.assetSerial ?? null,
+        assetCategory: ticket.assetIssue.assetCategory ?? null,
+        assetClassification: ticket.assetIssue.assetClassification ?? null,
+        requestedAssetName: ticket.assetIssue.requestedAssetName ?? null,
+      }
+      : null,
     status: ticket.status || "OPEN",
     priority: ticket.priority || "LOW",
     createdAt: ticket.createdAt || new Date().toISOString(),
@@ -80,21 +89,27 @@ export function normalizeAsset(raw: unknown): ITAsset {
 }
 
 export function inferTicketCategory(ticket: Pick<ITTicket, "title" | "summary">): TicketCategory {
-  if ((ticket as ITTicket).issueType === "ASSET_REQUEST") return "ASSET_REQUEST"
-  if ((ticket as ITTicket).issueType === "ASSET_PROBLEM") {
-    const classification = (ticket as ITTicket).assetIssue?.assetClassification
-    if (classification === "NETWORK") return "NETWORK"
-    if (classification === "SOFTWARE") return "SOFTWARE"
-    if (classification === "HARDWARE") return "HARDWARE"
-    return "ASSET_REQUEST"
+  const issueType = resolveTicketIssueType(ticket as Pick<ITTicket, "issueType" | "assetIssue">)
+  const classification = (ticket as ITTicket).assetIssue?.assetClassification?.trim().toUpperCase()
+  if (classification === "NETWORK") return "NETWORK"
+  if (classification === "SOFTWARE") return "SOFTWARE"
+  if (classification === "HARDWARE") return "HARDWARE"
+
+  const category = (ticket as ITTicket).assetIssue?.assetCategory?.trim().toUpperCase()
+  if (category === "NETWORK") return "NETWORK"
+  if (category === "SOFTWARE") return "SOFTWARE"
+  if (category === "HARDWARE") return "HARDWARE"
+
+  // General IT tickets are still mapped into one of the 3 IT categories.
+  if (issueType === "GENERAL") {
+    const text = `${ticket.title || ""} ${ticket.summary || ""}`.toLowerCase()
+    if (NETWORK_KEYWORDS.some((keyword) => text.includes(keyword))) return "NETWORK"
+    if (SOFTWARE_KEYWORDS.some((keyword) => text.includes(keyword))) return "SOFTWARE"
   }
 
-  const text = `${ticket.title} ${ticket.summary}`.toLowerCase()
-  if (text.includes("asset") || text.includes("request") || text.includes("laptop") || text.includes("monitor")) return "ASSET_REQUEST"
-  if (text.includes("network") || text.includes("wifi") || text.includes("internet") || text.includes("vpn")) return "NETWORK"
-  if (text.includes("hardware") || text.includes("printer") || text.includes("device") || text.includes("desktop")) return "HARDWARE"
-  if (text.includes("software") || text.includes("application") || text.includes("install") || text.includes("license")) return "SOFTWARE"
-  return "GENERAL"
+  // Asset tickets without explicit classification default to hardware.
+  if (issueType === "ASSET_REQUEST" || issueType === "ASSET_PROBLEM") return "HARDWARE"
+  return "HARDWARE"
 }
 
 export function isOverdue(ticket: ITTicket): boolean {
@@ -112,6 +127,19 @@ export function getDeadlineLabel(priority: TicketPriority): string {
 
 export function getMemberLoad(tickets: ITTicket[], memberId: string) {
   return tickets.filter((ticket) => ticket.assignedToId === memberId && (ticket.status === "OPEN" || ticket.status === "IN_PROGRESS")).length
+}
+
+export function toArrayResponse<T>(payload: unknown): T[] {
+  if (Array.isArray(payload)) return payload as T[]
+  if (
+    payload
+    && typeof payload === "object"
+    && "data" in payload
+    && Array.isArray((payload as { data?: unknown }).data)
+  ) {
+    return (payload as { data: T[] }).data
+  }
+  return []
 }
 
 export type { ITAsset, ITTicket, TicketCategory, TicketPriority, ITUser, TicketIssueType, TicketAssetIssue } from "./it-types"
