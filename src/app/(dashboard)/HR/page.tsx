@@ -18,12 +18,13 @@ export default function HrDashboard() {
   const [usingMock, setUsingMock] = useState(false)
 
   useEffect(() => {
-    apiFetch("/tickets?department=HR")
+    apiFetch("/tickets")
       .then((data) => {
-        setTickets(data)
+        const validTickets = Array.isArray(data) ? data : (data?.tickets || data?.data || [])
+        setTickets(validTickets)
         // Also sync to localStorage for Reports page
         localStorage.setItem("hr_tickets", JSON.stringify(
-          data.map((t: any) => ({
+          validTickets.map((t: any) => ({
             ...t,
             category: t.title,
             employeeName: t.createdBy?.name || "Unknown",
@@ -34,18 +35,26 @@ export default function HrDashboard() {
       })
       .catch(() => {
         const stored = localStorage.getItem("hr_tickets")
-        if (stored) setTickets(JSON.parse(stored))
+        if (stored) {
+          try {
+            const parsed = JSON.parse(stored)
+            setTickets(Array.isArray(parsed) ? parsed : [])
+          } catch(e) {
+            setTickets([])
+          }
+        }
         setUsingMock(true)
       })
       .finally(() => setLoading(false))
   }, [])
 
-  const open = tickets.filter(t => t.status === "OPEN").length
-  const inProgress = tickets.filter(t => t.status === "IN_PROGRESS").length
-  const resolved = tickets.filter(t => t.status === "RESOLVED").length
-  const rejected = tickets.filter(t => t.status === "REJECTED").length
-  const critical = tickets.filter(t => t.priority === "CRITICAL").length
-  const resolutionRate = tickets.length > 0 ? Math.round((resolved / tickets.length) * 100) : 0
+  const safeTickets = Array.isArray(tickets) ? tickets : []
+  const open = safeTickets.filter(t => t.status === "OPEN").length
+  const inProgress = safeTickets.filter(t => t.status === "IN_PROGRESS").length
+  const resolved = safeTickets.filter(t => t.status === "RESOLVED").length
+  const rejected = safeTickets.filter(t => t.status === "REJECTED").length
+  const critical = safeTickets.filter(t => t.priority === "CRITICAL").length
+  const resolutionRate = safeTickets.length > 0 ? Math.round((resolved / safeTickets.length) * 100) : 0
 
   return (
     <div className="space-y-6">
@@ -65,7 +74,7 @@ export default function HrDashboard() {
         <>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {[
-              { label: "Total Tickets", value: tickets.length, color: "border-l-blue-500", textColor: "text-slate-800" },
+              { label: "Total Tickets", value: safeTickets.length, color: "border-l-blue-500", textColor: "text-slate-800" },
               { label: "Open", value: open, color: "border-l-orange-500", textColor: "text-orange-600" },
               { label: "In Progress", value: inProgress, color: "border-l-yellow-500", textColor: "text-yellow-600" },
               { label: "Resolved", value: resolved, color: "border-l-green-500", textColor: "text-green-600" },
@@ -93,7 +102,7 @@ export default function HrDashboard() {
           <div>
             <h3 className="text-lg font-semibold text-slate-700 mb-3">Recent Tickets</h3>
             <div className="space-y-2">
-              {tickets.slice(0, 5).map(t => (
+              {safeTickets.slice(0, 5).map(t => (
                 <div key={t.id} className="flex items-center justify-between bg-white rounded-lg border border-slate-100 px-4 py-3">
                   <div>
                     <p className="text-sm font-medium text-slate-800">{t.createdBy?.name || "Unknown"}</p>

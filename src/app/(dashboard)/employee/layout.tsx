@@ -4,27 +4,21 @@ import { ReactNode, useEffect, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
-
-
+import { useAuth } from "@/lib/auth-context"
 
 export default function HrLayout({ children }: { children: ReactNode }) {
   const router = useRouter()
-  const [email, setEmail] = useState("")
+  const { user, isAuthenticated, loading, logout } = useAuth()
   const [sessionTime, setSessionTime] = useState(0)
   const [currentDate, setCurrentDate] = useState("")
 
   useEffect(() => {
-    // Get user from localStorage
-    const stored = localStorage.getItem("user")
-
-    if (stored) {
-      const user = JSON.parse(stored)
-      setEmail(user.email)
-    } else {
+    if (!loading && !isAuthenticated) {
       router.push("/login")
     }
+  }, [loading, isAuthenticated, router])
 
-    // Set current date (fix hydration issue)
+  useEffect(() => {
     setCurrentDate(
       new Date().toLocaleDateString("en-IN", {
         weekday: "long",
@@ -52,8 +46,11 @@ export default function HrLayout({ children }: { children: ReactNode }) {
   }
 
   function handleLogout() {
-    localStorage.removeItem("user")
-    router.push("/")
+    logout()
+  }
+
+  if (loading) {
+    return <div className="flex h-screen items-center justify-center">Loading...</div>
   }
 
   return (
@@ -106,7 +103,7 @@ export default function HrLayout({ children }: { children: ReactNode }) {
           <p className="text-xs text-slate-400">Logged in as</p>
 
           <p className="text-sm text-white font-medium truncate">
-            {email || "..."}
+            {user?.email || "..."}
           </p>
 
           <p className="text-xs text-slate-400">

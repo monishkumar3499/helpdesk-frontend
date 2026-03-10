@@ -13,7 +13,7 @@ type Ticket = {
   status: "OPEN" | "IN_PROGRESS" | "RESOLVED"
   priority: "LOW" | "HIGH" | "CRITICAL"
   createdAt: string
-  createdBy: { name: string }
+  createdBy?: { name: string }
 }
 
 const DAYS = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"]
@@ -45,9 +45,13 @@ export default function CalendarPage(){
 
       try{
 
-        const data = await apiFetch("/tickets")
+        const data = await apiFetch("/tickets/mine")
 
-        setTickets(data)
+        if(Array.isArray(data)){
+          setTickets(data)
+        }else{
+          setTickets([])
+        }
 
       }catch(err){
 
@@ -69,10 +73,7 @@ export default function CalendarPage(){
     return <p className="p-6 text-sm text-gray-500">Loading calendar...</p>
   }
 
-  /* Calendar Layout */
-
   const firstDay = new Date(currentYear,currentMonth,1).getDay()
-
   const daysInMonth = new Date(currentYear,currentMonth+1,0).getDate()
 
   const cells = [
@@ -80,35 +81,11 @@ export default function CalendarPage(){
     ...Array.from({length:daysInMonth},(_,i)=>i+1)
   ]
 
-  /* Safe Date Parser */
-
-  function parseTicketDate(dateStr:string){
-
-    if(dateStr.includes("T")){
-      return new Date(dateStr)
-    }
-
-    try{
-
-      const [datePart] = dateStr.split(",")
-
-      const [day,month,year] = datePart.split("/").map(Number)
-
-      return new Date(year,month-1,day)
-
-    }catch{
-      return new Date(dateStr)
-    }
-
-  }
-
-  /* Group tickets by day */
-
   const ticketsByDay:Record<number,Ticket[]> = {}
 
   tickets.forEach(ticket=>{
 
-    const date = parseTicketDate(ticket.createdAt)
+    const date = new Date(ticket.createdAt)
 
     if(
       date.getMonth()===currentMonth &&
@@ -124,8 +101,6 @@ export default function CalendarPage(){
     }
 
   })
-
-  /* Navigation */
 
   const prevMonth=()=>{
 
@@ -159,8 +134,6 @@ export default function CalendarPage(){
 
     <div className="space-y-6">
 
-      {/* Title */}
-
       <div>
         <h2 className="text-2xl font-bold text-slate-800">Calendar</h2>
         <p className="text-sm text-slate-500 mt-1">
@@ -169,8 +142,6 @@ export default function CalendarPage(){
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-
-        {/* Calendar */}
 
         <Card className="lg:col-span-2">
 
@@ -200,8 +171,6 @@ export default function CalendarPage(){
 
           <CardContent>
 
-            {/* Weekdays */}
-
             <div className="grid grid-cols-7 mb-2">
 
               {DAYS.map(day=>(
@@ -211,8 +180,6 @@ export default function CalendarPage(){
               ))}
 
             </div>
-
-            {/* Calendar Grid */}
 
             <div className="grid grid-cols-7 gap-1">
 
@@ -273,8 +240,6 @@ export default function CalendarPage(){
 
         </Card>
 
-        {/* Day Tickets */}
-
         <Card>
 
           <CardHeader>
@@ -334,4 +299,5 @@ export default function CalendarPage(){
     </div>
 
   )
+
 }

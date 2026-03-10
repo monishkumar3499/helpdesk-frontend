@@ -1,10 +1,11 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { useRouter } from "next/navigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { CheckCircle2, Clock, BarChart3, Activity } from "lucide-react"
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL
+import { apiFetch, ApiError } from "@/lib/api"
+import { useAuth } from "@/lib/auth-context"
 
 type Ticket = {
   id: string
@@ -51,32 +52,65 @@ function BarChart({
 }
 
 export default function ReportsPage() {
+
+  const router = useRouter()
+  const { isAuthenticated, loading: authLoading } = useAuth()
+
   const [tickets, setTickets] = useState<Ticket[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-  const fetchTickets = async () => {
-    try {
-      const res = await fetch("http://localhost:3001/tickets")
 
-      if (!res.ok) {
-        throw new Error("API failed")
+    if (authLoading) return
+
+    if (!isAuthenticated) {
+      router.replace("/login")
+      return
+    }
+
+    fetchTickets()
+
+  }, [authLoading, isAuthenticated])
+
+  async function fetchTickets() {
+
+    try {
+
+      const data: Ticket[] = await apiFetch("/tickets/mine")
+      setTickets(data)
+
+    } catch (err) {
+
+      if (err instanceof ApiError) {
+        console.error(`API Error ${err.statusCode}: ${err.message}`)
+        setError(err.message)
+      } else {
+        console.error("Failed to fetch tickets:", err)
+        setError("Failed to load tickets")
       }
 
-      const data: Ticket[] = await res.json()
-      setTickets(data)
-    } catch (err) {
-      console.error("Failed to fetch tickets:", err)
     } finally {
       setLoading(false)
     }
+
   }
 
-  fetchTickets()
-}, [])
+  if (authLoading) {
+    return <p className="text-sm text-gray-500">Checking authentication...</p>
+  }
 
   if (loading) {
     return <p className="text-sm text-gray-500">Loading reports...</p>
+  }
+
+  if (error) {
+    return (
+      <div className="rounded-lg bg-red-50 border border-red-200 p-4">
+        <p className="text-red-700">Error loading tickets</p>
+        <p className="text-red-600 text-sm">{error}</p>
+      </div>
+    )
   }
 
   const open = tickets.filter((t) => t.status === "OPEN").length
@@ -110,18 +144,18 @@ export default function ReportsPage() {
 
   return (
     <div className="space-y-6">
+
       <div>
         <h2 className="text-2xl font-bold text-slate-800">
           Reports & Analytics
         </h2>
         <p className="text-sm text-slate-500">
-          Live ticket data from backend
+          Live ticket data 
         </p>
       </div>
 
-      {/* KPI Cards */}
-
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+
         <Card className="border-l-4 border-blue-500">
           <CardContent className="p-4 flex justify-between items-center">
             <div>
@@ -151,11 +185,11 @@ export default function ReportsPage() {
             <CheckCircle2 className="h-8 w-8 text-green-400" />
           </CardContent>
         </Card>
+
       </div>
 
-      {/* Charts */}
-
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+
         <Card>
           <CardHeader>
             <CardTitle className="flex gap-2 items-center">
@@ -181,21 +215,24 @@ export default function ReportsPage() {
             <BarChart data={priorityData} maxVal={maxPriority} />
           </CardContent>
         </Card>
+
       </div>
 
-      {/* Recent Tickets */}
-
       <div>
+
         <h3 className="text-lg font-semibold text-slate-700 mb-3">
           Recent Tickets
         </h3>
 
         <div className="space-y-2">
+
           {tickets.slice(0, 5).map((ticket) => (
+
             <div
               key={ticket.id}
               className="flex justify-between items-center bg-white border rounded-lg px-4 py-3"
             >
+
               <div>
                 <p className="text-sm font-medium">
                   {ticket.createdBy?.name || "Unknown"}
@@ -204,6 +241,7 @@ export default function ReportsPage() {
               </div>
 
               <div className="flex gap-2">
+
                 <span className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded">
                   {ticket.status}
                 </span>
@@ -211,11 +249,18 @@ export default function ReportsPage() {
                 <span className="text-xs px-2 py-1 bg-red-100 text-red-700 rounded">
                   {ticket.priority}
                 </span>
+
               </div>
+
             </div>
+
           ))}
+
         </div>
+
       </div>
+
     </div>
   )
-}
+} 
+

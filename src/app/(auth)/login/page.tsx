@@ -1,126 +1,152 @@
-// "use client"
+"use client"
 
-// import { useState, useEffect } from "react"
-// import { useRouter } from "next/navigation"
-// import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-// import { Input } from "@/components/ui/input"
-// import { Button } from "@/components/ui/button"
-// import { Label } from "@/components/ui/label"
+import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
+import { Button } from "@/components/ui/button"
+import { Label } from "@/components/ui/label"
+import { useAuth } from "@/lib/auth-context"
 
-// const MOCK_USERS = [
-//   { email: "hr@company.com", password: "password123", role: "HR", name: "HR Manager" },
-//   { email: "admin@company.com", password: "password123", role: "ADMIN", name: "Admin User" },
-//   { email: "employee@company.com", password: "password123", role: "EMPLOYEE", name: "Test Employee" },
-// ]
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"
 
-// export default function LoginPage() {
-//   const router = useRouter()
-//   const [email, setEmail] = useState("")
-//   const [password, setPassword] = useState("")
-//   const [error, setError] = useState("")
-//   const [loading, setLoading] = useState(false)
+export default function LoginPage() {
+  const router = useRouter()
 
-//   useEffect(() => {
-//     // If already logged in, redirect
-//     const user = localStorage.getItem("user")
-//     if (user) {
-//       const parsed = JSON.parse(user)
-//       if (parsed.role === "HR" || parsed.role === "ADMIN") router.push("/HR")
-//       else router.push("/employee")
-//     }
-//   }, [])
+  const {
+    isAuthenticated,
+    user,
+    login,
+    loading: authLoading
+  } = useAuth()
 
-//   function handleLogin() {
-//     setLoading(true)
-//     setError("")
+  const [email, setEmail] = useState("")
+  const [password, setPassword] = useState("")
+  const [error, setError] = useState("")
+  const [loading, setLoading] = useState(false)
 
-//     setTimeout(() => {
-//       const user = MOCK_USERS.find(
-//         u => u.email === email && u.password === password
-//       )
+  useEffect(() => {
 
-//       if (!user) {
-//         setError("Invalid email or password")
-//         setLoading(false)
-//         return
-//       }
+    if (authLoading) return
 
-//       // Save to localStorage
-//       localStorage.setItem("user", JSON.stringify({
-//         email: user.email,
-//         name: user.name,
-//         role: user.role,
-//         loginTime: new Date().toISOString(),
-//       }))
+    const token = localStorage.getItem("authToken")
 
-//       // Redirect based on role
-//       if (user.role === "HR" || user.role === "ADMIN") {
-//         router.push("/HR")
-//       } else {
-//         router.push("/employee")
-//       }
+    if (isAuthenticated && user && token) {
 
-//       setLoading(false)
-//     }, 800)
-//   }
+      const dest =
+        ["HR", "IT_ADMIN", "IT_SUPPORT"].includes(user.role)
+          ? "/HR"
+          : "/employee"
 
-//   return (
-//     <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
-//       <Card className="w-full max-w-md shadow-lg">
-//         <CardHeader className="text-center pb-2">
-//           <div className="w-14 h-14 bg-slate-800 rounded-2xl flex items-center justify-center mx-auto mb-4">
-//             <span className="text-white font-bold text-xl">HD</span>
-//           </div>
-//           <CardTitle className="text-2xl font-bold text-slate-800">
-//             Helpdesk Login
-//           </CardTitle>
-//           <p className="text-sm text-slate-500">Sign in to your account</p>
-//         </CardHeader>
-//         <CardContent className="space-y-4 pt-2">
-//           <div className="space-y-2">
-//             <Label htmlFor="email">Email</Label>
-//             <Input
-//               id="email"
-//               type="email"
-//               placeholder="hr@company.com"
-//               value={email}
-//               onChange={(e) => setEmail(e.target.value)}
-//             />
-//           </div>
-//           <div className="space-y-2">
-//             <Label htmlFor="password">Password</Label>
-//             <Input
-//               id="password"
-//               type="password"
-//               placeholder="••••••••"
-//               value={password}
-//               onChange={(e) => setPassword(e.target.value)}
-//               onKeyDown={(e) => e.key === "Enter" && handleLogin()}
-//             />
-//           </div>
+      router.replace(dest)
+    }
 
-//           {error && (
-//             <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg border border-red-100">
-//               ⚠️ {error}
-//             </p>
-//           )}
+  }, [authLoading, isAuthenticated, user, router])
 
-//           <Button
-//             className="w-full bg-slate-800 hover:bg-slate-700 h-11"
-//             onClick={handleLogin}
-//             disabled={loading || !email || !password}
-//           >
-//             {loading ? "Signing in..." : "Sign In →"}
-//           </Button>
 
-//           {/* Test credentials hint */}
-//           <div className="bg-blue-50 rounded-lg p-3 border border-blue-100">
-//             <p className="text-xs text-blue-700 font-medium mb-1">Credentials for testing:</p>
-//             <p className="text-xs text-blue-600">HR: hr@company.com | password123</p>
-//             <p className="text-xs text-blue-600">Employee: employee@company.com | password123</p>
-//           </div>
-//         </CardContent>
-//       </Card>
-//     </div>
-//   )
-// }
+  async function handleLogin() {
+
+    setLoading(true)
+    setError("")
+
+    try {
+
+      const res = await fetch(`${BASE_URL}/auth/login`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          email,
+          password
+        })
+      })
+
+      const data = await res.json()
+
+      if (!res.ok) {
+        throw new Error(data?.message || "Invalid email or password")
+      }
+
+      if (!data?.access_token || !data?.user) {
+        throw new Error("Invalid response from server")
+      }
+
+      // Save token + user
+      login(data.access_token, data.user)
+
+    } catch (err) {
+
+      let errorMessage = "Unable to sign in"
+
+      if (err instanceof Error) {
+        errorMessage = err.message
+      }
+
+      setError(errorMessage)
+
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  if (authLoading) {
+    return <p className="text-center mt-10">Checking authentication...</p>
+  }
+
+  return (
+    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
+
+      <Card className="w-full max-w-md shadow-lg">
+
+        <CardHeader className="text-center">
+          <CardTitle className="text-2xl font-bold">
+            Helpdesk Login
+          </CardTitle>
+        </CardHeader>
+
+        <CardContent className="space-y-4">
+
+          <div>
+            <Label>Email</Label>
+            <Input
+              type="email"
+              placeholder="Enter email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
+          </div>
+
+          <div>
+            <Label>Password</Label>
+            <Input
+              type="password"
+              placeholder="Enter password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
+          </div>
+
+          {error && (
+            <p className="text-red-600 text-sm">{error}</p>
+          )}
+
+          <Button
+            className="w-full"
+            onClick={handleLogin}
+            disabled={loading || !email || !password}
+          >
+            {loading ? "Signing in..." : "Sign In"}
+          </Button>
+
+          <p className="text-xs text-gray-500 text-center">
+            Backend: {BASE_URL}
+          </p>
+
+        </CardContent>
+
+      </Card>
+
+    </div>
+  )
+}

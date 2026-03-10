@@ -1,9 +1,14 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { useRouter } from "next/navigation"
 import { DataTable } from "@/components/ui/data-table"
 import { columns, Ticket } from "./columns"
 import { Button } from "@/components/ui/button"
+import { apiFetch } from "@/lib/api"
+import { useAuth } from "@/lib/auth-context"
+import { toast } from "sonner"
+
 import {
   Dialog,
   DialogContent,
@@ -11,8 +16,10 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog"
+
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+
 import {
   Select,
   SelectTrigger,
@@ -23,23 +30,34 @@ import {
 
 export default function MyTicketsPage() {
 
+  const router = useRouter()
+  const { isAuthenticated, loading: authLoading } = useAuth()
+
   const [tickets,setTickets] = useState<Ticket[]>([])
   const [loading,setLoading] = useState(true)
 
   const [open,setOpen] = useState(false)
   const [selected,setSelected] = useState<Ticket | null>(null)
+  const [isUpdating, setIsUpdating] = useState(false)
 
-  useEffect(()=>{
+  useEffect(() => {
+
+    if (authLoading) return
+
+    if (!isAuthenticated) {
+      router.replace("/login")
+      return
+    }
+
     fetchTickets()
-  },[])
+
+  }, [authLoading, isAuthenticated])
 
   async function fetchTickets(){
 
     try{
 
-      const res = await fetch("http://localhost:3001/tickets")
-      const data = await res.json()
-
+      const data = await apiFetch("/tickets/mine")
       setTickets(data)
 
     }catch(err){
@@ -55,7 +73,7 @@ export default function MyTicketsPage() {
   }
 
   function handleRowClick(ticket:Ticket){
-    setSelected(ticket)
+    setSelected({...ticket})
     setOpen(true)
   }
 
@@ -64,34 +82,35 @@ export default function MyTicketsPage() {
     if(!selected) return
 
     try{
-
-      await fetch(`http://localhost:3001/tickets/${selected.id}`,{
-
-        method:"PATCH",
-
-        headers:{
-          "Content-Type":"application/json"
-        },
-
-        body:JSON.stringify({
+      setIsUpdating(true)
+      await apiFetch(`/tickets/${selected.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({
           title:selected.title,
           summary:selected.summary,
           status:selected.status,
           priority:selected.priority,
           department:selected.department
         })
-
       })
 
+      toast.success("Ticket updated successfully!")
       setOpen(false)
       fetchTickets()
 
-    }catch(err){
+    }catch(err: any){
 
       console.error("Update failed:",err)
+      toast.error(err.message || "Failed to update ticket.")
 
+    }finally{
+      setIsUpdating(false)
     }
 
+  }
+
+  if(authLoading){
+    return <p className="p-6 text-gray-500">Checking authentication...</p>
   }
 
   if(loading){
@@ -112,8 +131,6 @@ export default function MyTicketsPage() {
         onRowClick={handleRowClick}
       />
 
-      {/* EDIT MODAL */}
-
       <Dialog open={open} onOpenChange={setOpen}>
 
         <DialogContent className="max-w-lg">
@@ -126,8 +143,6 @@ export default function MyTicketsPage() {
 
             <div className="space-y-5">
 
-              {/* Title */}
-
               <div className="space-y-1">
                 <Label>Title</Label>
                 <Input
@@ -138,8 +153,6 @@ export default function MyTicketsPage() {
                 />
               </div>
 
-              {/* Summary */}
-
               <div className="space-y-1">
                 <Label>Summary</Label>
                 <Input
@@ -149,8 +162,6 @@ export default function MyTicketsPage() {
                   }
                 />
               </div>
-
-              {/* Status */}
 
               <div className="space-y-1">
                 <Label>Status</Label>
@@ -173,8 +184,6 @@ export default function MyTicketsPage() {
 
                 </Select>
               </div>
-
-              {/* Priority */}
 
               <div className="space-y-1">
                 <Label>Priority</Label>
@@ -199,15 +208,13 @@ export default function MyTicketsPage() {
 
               </div>
 
-              {/* Department */}
-
               <div className="space-y-1">
                 <Label>Department</Label>
 
                 <Select
                   value={selected.department}
                   onValueChange={(value)=>
-                    setSelected({...selected,department:value})
+                    setSelected({...selected,department:value as Ticket["department"]})
                   }
                 >
                   <SelectTrigger>
@@ -222,8 +229,6 @@ export default function MyTicketsPage() {
                 </Select>
 
               </div>
-
-              {/* Read-only fields */}
 
               <div className="text-xs text-slate-500 pt-2 border-t space-y-1">
 
@@ -248,8 +253,9 @@ export default function MyTicketsPage() {
 
                 <Button
                   onClick={saveChanges}
+                  disabled={isUpdating}
                 >
-                  Save Changes
+                  {isUpdating ? "Saving..." : "Save Changes"}
                 </Button>
 
               </DialogFooter>

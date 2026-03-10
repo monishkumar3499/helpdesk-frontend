@@ -4,23 +4,20 @@ import { ReactNode, useEffect, useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
+import { useAuth } from "@/lib/auth-context"
 
 export default function HrLayout({ children }: { children: ReactNode }) {
   const router = useRouter()
-  const [email, setEmail] = useState("")
+  const { user, isAuthenticated, loading, logout } = useAuth()
   const [sessionTime, setSessionTime] = useState(0)
 
   useEffect(() => {
-    // Gettingf user from localStorage
-    const stored = localStorage.getItem("user")
-    if (stored) {
-      const user = JSON.parse(stored)
-      setEmail(user.email)
-    } else {
-      // No user loagged in → redirect to login
+    if (!loading && !isAuthenticated) {
       router.push("/login")
     }
+  }, [loading, isAuthenticated, router])
 
+  useEffect(() => {
     // Start session timer
     const timer = setInterval(() => {
       setSessionTime((prev) => prev + 1)
@@ -39,8 +36,11 @@ export default function HrLayout({ children }: { children: ReactNode }) {
   }
 
   function handleLogout() {
-    localStorage.removeItem("user")
-    router.push("/")
+    logout()
+  }
+
+  if (loading) {
+    return <div className="flex h-screen items-center justify-center">Loading...</div>
   }
 
   return (
@@ -85,7 +85,7 @@ export default function HrLayout({ children }: { children: ReactNode }) {
         {/* Session info at bottom of sidebar */}
         <div className="border-t border-slate-700 pt-4 mt-4 space-y-1">
           <p className="text-xs text-slate-400">Logged in as</p>
-          <p className="text-sm text-white font-medium truncate">{email || "..."}</p>
+          <p className="text-sm text-white font-medium truncate">{user?.email || "..."}</p>
           <p className="text-xs text-slate-400">
             Session: <span className="text-green-400 font-mono">{formatTime(sessionTime)}</span>
           </p>
