@@ -138,10 +138,13 @@ export default function LoginPage() {
 
           <div className="border-t pt-3 space-y-1 text-xs text-slate-400 text-center">
             <p className="font-medium text-slate-500">Demo accounts</p>
-            <p>HR: <code>hr@helpdesk.com</code> / hr@123</p>
-            <p>IT Admin: <code>itadmin@helpdesk.com</code> / it@123</p>
-            <p>IT Support: <code>it@helpdesk.com</code> / it@123</p>
-            <p>Employee: <code>john@company.com</code> / emp@123</p>
+            <p>Admin: <code>admin@helpdesk.com</code> / admin123</p>
+            <p>HR: <code>hr@helpdesk.com</code> / hr1123</p>
+            <p>IT Admin: <code>itadmin@helpdesk.com</code> / it123</p>
+            <p>IT Support: <code>dwight@helpdesk.com</code> / it123</p>
+            <p>Employee1: <code>jim@company.com</code> / emp123</p>
+            <p>Employee2: <code>pam@company.com</code> / emp123</p>
+            <p>Employee3: <code>ryan@company.com</code> / emp123</p>
           </div>
         </CardContent>
       </Card>
