@@ -88,6 +88,15 @@ export default function HrLayout({ children }: { children: ReactNode }) {
             </Button>
           </Link>
 
+          <Link href="/employee/my-assets">
+            <Button
+              variant="ghost"
+              className="w-full justify-start text-white hover:bg-slate-700"
+            >
+              My Assets
+            </Button>
+          </Link>
+
           <Link href="/employee/calendar">
             <Button
               variant="ghost"
