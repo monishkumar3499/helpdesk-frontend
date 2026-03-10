@@ -1,9 +1,9 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { useRouter } from "next/navigation"
 import { DataTable } from "@/components/ui/data-table"
-import { columns, Asset } from "./columns"
+import { getColumns, Asset } from "./columns"
 import { apiFetch } from "@/lib/api"
 import { useAuth } from "@/lib/auth-context"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
@@ -15,9 +15,34 @@ export default function MyAssetsPage() {
   const { isAuthenticated, loading: authLoading } = useAuth()
   const [assets, setAssets] = useState<Asset[]>([])
   const [loading, setLoading] = useState(true)
+  const [isReturning, setIsReturning] = useState(false)
+  const [feedback, setFeedback] = useState<string | null>(null)
+  const [selectedAssetIds, setSelectedAssetIds] = useState<string[]>([])
 
   const [open, setOpen] = useState(false)
   const [selected, setSelected] = useState<Asset | null>(null)
+
+  const returnableAssetIds = useMemo(
+    () => assets.filter((asset) => asset.assetStatus === "ASSIGNED").map((asset) => asset.id),
+    [assets],
+  )
+
+  const columns = useMemo(
+    () => getColumns({
+      selectedAssetIds,
+      selectableAssetIds: returnableAssetIds,
+      onToggleAsset: (assetId, checked) => {
+        setSelectedAssetIds((prev) => {
+          if (checked) return prev.includes(assetId) ? prev : [...prev, assetId]
+          return prev.filter((id) => id !== assetId)
+        })
+      },
+      onToggleAll: (checked) => {
+        setSelectedAssetIds(checked ? returnableAssetIds : [])
+      },
+    }),
+    [selectedAssetIds, returnableAssetIds],
+  )
 
   useEffect(() => {
     if (authLoading) return
@@ -28,16 +53,48 @@ export default function MyAssetsPage() {
     }
 
     fetchAssets()
-  }, [authLoading, isAuthenticated])
+  }, [authLoading, isAuthenticated, router])
 
   async function fetchAssets() {
     try {
       const data = await apiFetch("/assets/mine")
       setAssets(data)
+      setSelectedAssetIds((prev) => prev.filter((id) => data.some((asset: Asset) => asset.id === id)))
     } catch (err) {
       console.error("Failed to fetch assets:", err)
     } finally {
       setLoading(false)
+    }
+  }
+
+  async function handleReturnSelected() {
+    if (selectedAssetIds.length === 0) {
+      setFeedback("Select at least one asset to return")
+      return
+    }
+
+    try {
+      setIsReturning(true)
+      setFeedback(null)
+      await Promise.all(
+        selectedAssetIds.map((assetId) =>
+          apiFetch(`/assets/${assetId}/return`, {
+            method: "POST",
+          }),
+        ),
+      )
+
+      setFeedback(`Returned ${selectedAssetIds.length} asset(s) to inventory`)
+      setSelectedAssetIds([])
+      await fetchAssets()
+      if (selected && selectedAssetIds.includes(selected.id)) {
+        setOpen(false)
+      }
+    } catch (err) {
+      console.error("Failed to return assets:", err)
+      setFeedback(err instanceof Error ? err.message : "Failed to return selected assets")
+    } finally {
+      setIsReturning(false)
     }
   }
 
@@ -60,7 +117,16 @@ export default function MyAssetsPage() {
         <h1 className="text-3xl font-bold tracking-tight text-slate-800">
           My Assets
         </h1>
+        <Button onClick={handleReturnSelected} disabled={selectedAssetIds.length === 0 || isReturning}>
+          {isReturning ? "Returning..." : `Return Selected (${selectedAssetIds.length})`}
+        </Button>
       </div>
+
+      {feedback && (
+        <p className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
+          {feedback}
+        </p>
+      )}
 
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden p-4 sm:p-6 mb-8">
         <DataTable

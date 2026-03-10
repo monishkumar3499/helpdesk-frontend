@@ -51,7 +51,7 @@ export default function MyTicketsPage() {
 
     fetchTickets()
 
-  }, [authLoading, isAuthenticated])
+  }, [authLoading, isAuthenticated, router])
 
   async function fetchTickets(){
 
@@ -98,10 +98,10 @@ export default function MyTicketsPage() {
       setOpen(false)
       fetchTickets()
 
-    }catch(err: any){
+    }catch(err: unknown){
 
       console.error("Update failed:",err)
-      setFeedback(err?.message || "Failed to update ticket")
+      setFeedback(err instanceof Error ? err.message : "Failed to update ticket")
 
     }finally{
       setIsUpdating(false)
@@ -116,6 +116,9 @@ export default function MyTicketsPage() {
   if(loading){
     return <p className="p-6 text-gray-500">Loading tickets...</p>
   }
+
+  const formatIssueType = (issueType?: Ticket["issueType"]) =>
+    (issueType || "GENERAL").replaceAll("_", " ")
 
   return(
 
@@ -235,6 +238,34 @@ export default function MyTicketsPage() {
                 </Select>
 
               </div>
+
+              {selected.department === "IT" && (
+                <div className="space-y-3 rounded-md border border-slate-200 bg-slate-50 p-3">
+                  <div className="space-y-1">
+                    <Label>IT Issue Type</Label>
+                    <p className="text-sm font-medium text-slate-800">{formatIssueType(selected.issueType)}</p>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm text-slate-700">
+                    <div>
+                      <p className="text-xs text-slate-500">Asset Serial Number</p>
+                      <p className="font-medium">{selected.assetIssue?.assetSerialNumber || "N/A"}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-slate-500">Asset Category</p>
+                      <p className="font-medium">{selected.assetIssue?.assetCategory || "N/A"}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-slate-500">Classification</p>
+                      <p className="font-medium">{selected.assetIssue?.assetClassification || "N/A"}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-slate-500">Requested Asset / Problem</p>
+                      <p className="font-medium">{selected.assetIssue?.requestedAssetName || "N/A"}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               <div className="text-xs text-slate-500 pt-2 border-t space-y-1">
 

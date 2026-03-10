@@ -2,6 +2,7 @@ const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 const USE_MOCK_API = process.env.NEXT_PUBLIC_USE_MOCK_API === "true";
 const MOCK_DB_KEY = "helpdesk_mock_db_v1";
 const ACCESS_TOKEN_KEY = "access_token";
+const AUTH_USER_KEY = "user";
 
 type TicketStatus = "OPEN" | "IN_PROGRESS" | "RESOLVED" | "REJECTED";
 type TicketPriority = "CRITICAL" | "HIGH" | "LOW";
@@ -49,6 +50,7 @@ type MockAsset = {
   assetType: AssetType;
   assetStatus: AssetStatus;
   assignedToId?: string | null;
+  assignedDate?: string | null;
   createdAt: string;
 };
 
@@ -204,10 +206,10 @@ function createSeedData(): MockDb {
   ];
 
   const assets: MockAsset[] = [
-    { id: "asset-1", serialNumber: "AST-HA-110201", assetName: "Dell Latitude 5440", assetType: "HARDWARE", assetStatus: "ASSIGNED", assignedToId: "emp-1", createdAt: hoursAgoIso(500) },
+    { id: "asset-1", serialNumber: "AST-HA-110201", assetName: "Dell Latitude 5440", assetType: "HARDWARE", assetStatus: "ASSIGNED", assignedToId: "emp-1", assignedDate: hoursAgoIso(300), createdAt: hoursAgoIso(500) },
     { id: "asset-2", serialNumber: "AST-HA-110202", assetName: "HP EliteBook 840", assetType: "HARDWARE", assetStatus: "AVAILABLE", createdAt: hoursAgoIso(420) },
     { id: "asset-3", serialNumber: "AST-HA-110203", assetName: "Lenovo ThinkPad T14", assetType: "HARDWARE", assetStatus: "AVAILABLE", createdAt: hoursAgoIso(380) },
-    { id: "asset-4", serialNumber: "AST-SO-220101", assetName: "Microsoft 365 License", assetType: "SOFTWARE", assetStatus: "ASSIGNED", assignedToId: "emp-4", createdAt: hoursAgoIso(900) },
+    { id: "asset-4", serialNumber: "AST-SO-220101", assetName: "Microsoft 365 License", assetType: "SOFTWARE", assetStatus: "ASSIGNED", assignedToId: "emp-4", assignedDate: hoursAgoIso(500), createdAt: hoursAgoIso(900) },
     { id: "asset-5", serialNumber: "AST-SO-220102", assetName: "Adobe Acrobat Pro License", assetType: "SOFTWARE", assetStatus: "AVAILABLE", createdAt: hoursAgoIso(250) },
     { id: "asset-6", serialNumber: "AST-NW-330001", assetName: "Cisco Access Point", assetType: "NETWORK", assetStatus: "MAINTENANCE", createdAt: hoursAgoIso(750) },
     { id: "asset-7", serialNumber: "AST-NW-330002", assetName: "Fortinet Firewall", assetType: "NETWORK", assetStatus: "AVAILABLE", createdAt: hoursAgoIso(600) },
@@ -299,6 +301,29 @@ function parseJsonBody(options?: RequestInit): Record<string, unknown> {
   }
 }
 
+function getCurrentMockUserId(db: MockDb): string | null {
+  if (typeof window === "undefined") return null;
+
+  const rawUser = window.localStorage.getItem(AUTH_USER_KEY);
+  if (!rawUser) return null;
+
+  try {
+    const user = JSON.parse(rawUser) as { id?: string; email?: string };
+    if (user.id && db.users.some((candidate) => candidate.id === user.id)) {
+      return user.id;
+    }
+
+    if (user.email) {
+      const matchedUser = db.users.find((candidate) => candidate.email === user.email);
+      return matchedUser?.id ?? null;
+    }
+  } catch {
+    return null;
+  }
+
+  return null;
+}
+
 function enrichTicket(ticket: MockTicket, db: MockDb) {
   const createdBy = db.users.find((u) => u.id === ticket.createdById);
   const assignedTo = db.users.find((u) => u.id === ticket.assignedToId);
@@ -341,8 +366,20 @@ async function mockFetch(endpoint: string, options?: RequestInit) {
     return delay(clone(scoped.map((ticket) => enrichTicket(ticket, db))));
   }
 
+  if (method === "GET" && pathname === "/tickets/mine") {
+    const currentUserId = getCurrentMockUserId(db);
+    if (!currentUserId) return delay([]);
+
+    const mine = db.tickets
+      .filter((ticket) => ticket.createdById === currentUserId || ticket.assignedToId === currentUserId)
+      .map((ticket) => enrichTicket(ticket, db));
+
+    return delay(clone(mine));
+  }
+
   if (method === "POST" && pathname === "/tickets") {
     const body = parseJsonBody(options);
+    const currentUserId = getCurrentMockUserId(db);
     const nextTicket: MockTicket = {
       id: `it-${Math.floor(Date.now() / 1000).toString().slice(-6)}`,
       title: (body.title as string | undefined) || "Untitled Ticket",
@@ -354,7 +391,7 @@ async function mockFetch(endpoint: string, options?: RequestInit) {
       priority: (body.priority as TicketPriority | undefined) || "LOW",
       department: (body.department as Department | undefined) || "IT",
       createdAt: nowIso(),
-      createdById: body.createdById as string | undefined,
+      createdById: (body.createdById as string | undefined) || currentUserId || undefined,
       assignedToId: (body.assignedToId as string | null | undefined) ?? null,
     };
     const next = [nextTicket, ...db.tickets];
@@ -399,6 +436,7 @@ async function mockFetch(endpoint: string, options?: RequestInit) {
             ...asset,
             assetStatus: (body.assetStatus as AssetStatus | undefined) || asset.assetStatus,
             assignedToId: (body.assignedToId as string | null | undefined) ?? asset.assignedToId,
+            assignedDate: body.assignedToId ? nowIso() : asset.assignedDate,
           }
         : asset,
     );
@@ -419,6 +457,46 @@ async function mockFetch(endpoint: string, options?: RequestInit) {
 
   if (method === "GET" && pathname === "/assets") {
     return delay(clone(db.assets.map((asset) => enrichAsset(asset, db))));
+  }
+
+  if (method === "GET" && pathname === "/assets/mine") {
+    const currentUserId = getCurrentMockUserId(db);
+    if (!currentUserId) return delay([]);
+
+    const mine = db.assets
+      .filter((asset) => asset.assignedToId === currentUserId)
+      .map((asset) => enrichAsset(asset, db));
+
+    return delay(clone(mine));
+  }
+
+  if (method === "POST" && pathname.match(/^\/assets\/[^/]+\/return$/)) {
+    const id = pathname.split("/")[2];
+    const currentUserId = getCurrentMockUserId(db);
+
+    const target = db.assets.find((asset) => asset.id === id);
+    if (!target) {
+      throw new Error("Asset not found");
+    }
+
+    if (currentUserId && target.assignedToId && target.assignedToId !== currentUserId) {
+      throw new Error("You cannot return an asset assigned to another user");
+    }
+
+    const next = db.assets.map((asset) =>
+      asset.id === id
+        ? {
+            ...asset,
+            assignedToId: null,
+            assetStatus: "AVAILABLE" as AssetStatus,
+            assignedDate: null,
+          }
+        : asset,
+    );
+    persistDb({ ...db, assets: next });
+
+    const updated = next.find((asset) => asset.id === id) as MockAsset;
+    return delay(clone(enrichAsset(updated, { ...db, assets: next })));
   }
 
   if (method === "POST" && pathname === "/assets") {

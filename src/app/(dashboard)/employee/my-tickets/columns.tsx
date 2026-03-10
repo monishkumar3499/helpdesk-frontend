@@ -11,6 +11,13 @@ export type Ticket = {
   status: "OPEN" | "IN_PROGRESS" | "RESOLVED"
   priority: "CRITICAL" | "HIGH" | "LOW"
   department: "HR" | "IT"
+  issueType?: "GENERAL" | "ASSET_REQUEST" | "ASSET_PROBLEM"
+  assetIssue?: {
+    assetSerialNumber?: string | null
+    assetCategory?: string | null
+    assetClassification?: "NETWORK" | "SOFTWARE" | "HARDWARE" | null
+    requestedAssetName?: string | null
+  } | null
   createdAt: string
   createdBy?: { name: string }
   assignedToId?: string | null
@@ -40,6 +47,30 @@ export const columns: ColumnDef<Ticket>[] = [
   {
     accessorKey: "department",
     header: "Department",
+  },
+  {
+    id: "issueType",
+    header: "Issue Type",
+    cell: ({ row }) => {
+      const ticket = row.original
+      if (ticket.department !== "IT") return "-"
+      return (ticket.issueType || "GENERAL").replaceAll("_", " ")
+    },
+  },
+  {
+    id: "assetIssue",
+    header: "Asset Info",
+    cell: ({ row }) => {
+      const ticket = row.original
+      if (ticket.department !== "IT" || !ticket.assetIssue) return "-"
+
+      const issue = ticket.assetIssue
+      if (ticket.issueType === "ASSET_PROBLEM") {
+        return issue.assetSerialNumber || issue.requestedAssetName || "-"
+      }
+
+      return issue.requestedAssetName || issue.assetCategory || "-"
+    },
   },
   {
     accessorKey: "status",

@@ -1,7 +1,8 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { ChangeEvent, FormEvent, useMemo, useState } from "react"
 import { apiFetch } from "@/lib/api"
+import { getStoredUser } from "@/lib/auth"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -17,16 +18,19 @@ import {
 
 type Priority = "LOW" | "HIGH" | "CRITICAL"
 type Department = "HR" | "IT"
+type TicketIssueType = "GENERAL" | "ASSET_REQUEST" | "ASSET_PROBLEM"
+type AssetClassification = "NETWORK" | "SOFTWARE" | "HARDWARE"
 
 export default function RaiseTicketPage() {
   const [title, setTitle] = useState("")
   const [summary, setSummary] = useState("")
   const [priority, setPriority] = useState<Priority>("LOW")
   const [department, setDepartment] = useState<Department>("HR")
-  const [isAssetRequest, setIsAssetRequest] = useState(false)
-  const [isServiceRequest, setIsServiceRequest] = useState(false)
-  const [assetDescription, setAssetDescription] = useState("")
-  const [serviceDescription, setServiceDescription] = useState("")
+  const [issueType, setIssueType] = useState<TicketIssueType>("GENERAL")
+  const [assetSerialNumber, setAssetSerialNumber] = useState("")
+  const [assetCategory, setAssetCategory] = useState("")
+  const [assetClassification, setAssetClassification] = useState<AssetClassification>("HARDWARE")
+  const [requestedAssetName, setRequestedAssetName] = useState("")
   const [image, setImage] = useState<File | null>(null)
   const [preview, setPreview] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
@@ -35,26 +39,39 @@ export default function RaiseTicketPage() {
   const canSubmit = useMemo(() => {
     if (!title.trim() || !summary.trim()) return false
     if (department !== "IT") return true
-    return isAssetRequest || isServiceRequest
-  }, [title, summary, department, isAssetRequest, isServiceRequest])
+    if (issueType === "GENERAL") return true
+    if (!assetCategory.trim() || !assetClassification) return false
+    if (issueType === "ASSET_REQUEST") return !!requestedAssetName.trim()
+    return !!assetSerialNumber.trim()
+  }, [
+    title,
+    summary,
+    department,
+    issueType,
+    assetCategory,
+    assetClassification,
+    requestedAssetName,
+    assetSerialNumber,
+  ])
 
   function onDepartmentChange(value: Department) {
     setDepartment(value)
     if (value !== "IT") {
-      setIsAssetRequest(false)
-      setIsServiceRequest(false)
-      setAssetDescription("")
-      setServiceDescription("")
+      setIssueType("GENERAL")
+      setAssetSerialNumber("")
+      setAssetCategory("")
+      setAssetClassification("HARDWARE")
+      setRequestedAssetName("")
     }
   }
 
-  function handleImageChange(event: React.ChangeEvent<HTMLInputElement>) {
+  function handleImageChange(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0] ?? null
     setImage(file)
     setPreview(file ? URL.createObjectURL(file) : null)
   }
 
-  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setMessage(null)
 
@@ -73,22 +90,19 @@ export default function RaiseTicketPage() {
         department,
       }
 
+      const currentUser = getStoredUser()
+      if (currentUser?.id) {
+        payload.createdById = currentUser.id
+      }
+
       if (department === "IT") {
-        if (isAssetRequest && !isServiceRequest) {
-          payload.issueType = "ASSET_REQUEST"
+        payload.issueType = issueType
+        if (issueType !== "GENERAL") {
           payload.assetIssue = {
-            assetCategory: "HARDWARE",
-            assetClassification: "HARDWARE",
-            requestedAssetName: assetDescription.trim() || "Requested asset",
-            assetId: null,
-          }
-        } else if (!isAssetRequest && isServiceRequest) {
-          payload.issueType = "ASSET_PROBLEM"
-          payload.assetIssue = {
-            assetCategory: "NETWORK",
-            assetClassification: "NETWORK",
-            requestedAssetName: serviceDescription.trim() || "Service request",
-            assetId: null,
+            assetSerialNumber: issueType === "ASSET_PROBLEM" ? assetSerialNumber.trim() || null : null,
+            assetCategory: assetCategory.trim() || null,
+            assetClassification,
+            requestedAssetName: requestedAssetName.trim() || null,
           }
         }
       }
@@ -103,10 +117,11 @@ export default function RaiseTicketPage() {
       setSummary("")
       setPriority("LOW")
       setDepartment("HR")
-      setIsAssetRequest(false)
-      setIsServiceRequest(false)
-      setAssetDescription("")
-      setServiceDescription("")
+      setIssueType("GENERAL")
+      setAssetSerialNumber("")
+      setAssetCategory("")
+      setAssetClassification("HARDWARE")
+      setRequestedAssetName("")
       setImage(null)
       setPreview(null)
     } catch (error) {
@@ -184,45 +199,76 @@ export default function RaiseTicketPage() {
                 {department === "IT" && (
                   <div className="space-y-6 p-6 bg-slate-50/80 border border-slate-100 rounded-xl">
                     <div className="space-y-3">
-                      <Label className="text-base font-semibold text-slate-800 block">Request Type</Label>
-                      <div className="grid grid-cols-2 gap-3">
-                        <Button
-                          type="button"
-                          variant={isAssetRequest ? "default" : "outline"}
-                          onClick={() => setIsAssetRequest((prev) => !prev)}
-                        >
-                          Asset
-                        </Button>
-                        <Button
-                          type="button"
-                          variant={isServiceRequest ? "default" : "outline"}
-                          onClick={() => setIsServiceRequest((prev) => !prev)}
-                        >
-                          Service
-                        </Button>
-                      </div>
+                      <Label className="text-base font-semibold text-slate-800 block">IT Ticket Type</Label>
+                      <Select value={issueType} onValueChange={(value) => setIssueType(value as TicketIssueType)}>
+                        <SelectTrigger className="h-11 bg-white border-slate-200">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="GENERAL">General IT Ticket</SelectItem>
+                          <SelectItem value="ASSET_REQUEST">Asset Request</SelectItem>
+                          <SelectItem value="ASSET_PROBLEM">Asset Problem</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
 
-                    {isAssetRequest && (
+                    {issueType !== "GENERAL" && (
                       <div className="space-y-2">
-                        <Label className="text-sm font-semibold text-slate-700">Asset Description</Label>
-                        <Textarea
-                          className="bg-white border-slate-200 resize-none h-24"
-                          placeholder="Provide details about required asset"
-                          value={assetDescription}
-                          onChange={(event) => setAssetDescription(event.target.value)}
+                        <Label className="text-sm font-semibold text-slate-700">Asset Category</Label>
+                        <Input
+                          className="bg-white border-slate-200"
+                          placeholder="Example: Laptop / Networking / Software"
+                          value={assetCategory}
+                          onChange={(event) => setAssetCategory(event.target.value)}
                         />
                       </div>
                     )}
 
-                    {isServiceRequest && (
+                    {issueType !== "GENERAL" && (
                       <div className="space-y-2">
-                        <Label className="text-sm font-semibold text-slate-700">Service Description</Label>
+                        <Label className="text-sm font-semibold text-slate-700">Asset Classification</Label>
+                        <Select
+                          value={assetClassification}
+                          onValueChange={(value) => setAssetClassification(value as AssetClassification)}
+                        >
+                          <SelectTrigger className="h-11 bg-white border-slate-200">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="HARDWARE">HARDWARE</SelectItem>
+                            <SelectItem value="SOFTWARE">SOFTWARE</SelectItem>
+                            <SelectItem value="NETWORK">NETWORK</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
+
+                    {issueType === "ASSET_PROBLEM" && (
+                      <div className="space-y-2">
+                        <Label className="text-sm font-semibold text-slate-700">Asset Serial Number</Label>
+                        <Input
+                          className="bg-white border-slate-200"
+                          placeholder="Enter assigned asset serial number"
+                          value={assetSerialNumber}
+                          onChange={(event) => setAssetSerialNumber(event.target.value)}
+                        />
+                      </div>
+                    )}
+
+                    {(issueType === "ASSET_REQUEST" || issueType === "ASSET_PROBLEM") && (
+                      <div className="space-y-2">
+                        <Label className="text-sm font-semibold text-slate-700">
+                          {issueType === "ASSET_REQUEST" ? "Requested Asset Name" : "Problem Details"}
+                        </Label>
                         <Textarea
                           className="bg-white border-slate-200 resize-none h-24"
-                          placeholder="Provide details about service issue"
-                          value={serviceDescription}
-                          onChange={(event) => setServiceDescription(event.target.value)}
+                          placeholder={
+                            issueType === "ASSET_REQUEST"
+                              ? "Example: 24-inch monitor"
+                              : "Describe what is wrong with the asset"
+                          }
+                          value={requestedAssetName}
+                          onChange={(event) => setRequestedAssetName(event.target.value)}
                         />
                       </div>
                     )}

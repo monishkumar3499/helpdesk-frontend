@@ -2,6 +2,7 @@
 
 import { ColumnDef } from "@tanstack/react-table"
 import { Badge } from "@/components/ui/badge"
+import { Checkbox } from "@/components/ui/checkbox"
 
 export type Asset = {
   id: string
@@ -11,6 +12,13 @@ export type Asset = {
   assetStatus: "AVAILABLE" | "ASSIGNED" | "MAINTENANCE" | "RETIRED"
   assignedDate?: string | null
   createdAt: string
+}
+
+type ColumnsOptions = {
+  selectedAssetIds: string[]
+  onToggleAsset: (assetId: string, checked: boolean) => void
+  onToggleAll: (checked: boolean) => void
+  selectableAssetIds: string[]
 }
 
 const statusColor: Record<string, string> = {
@@ -26,7 +34,46 @@ const typeColor: Record<string, string> = {
   HARDWARE: "bg-orange-100 text-orange-800",
 }
 
-export const columns: ColumnDef<Asset>[] = [
+export function getColumns({
+  selectedAssetIds,
+  onToggleAsset,
+  onToggleAll,
+  selectableAssetIds,
+}: ColumnsOptions): ColumnDef<Asset>[] {
+  const allSelected =
+    selectableAssetIds.length > 0
+    && selectableAssetIds.every((assetId) => selectedAssetIds.includes(assetId))
+
+  return [
+    {
+      id: "select",
+      header: () => (
+        <div className="text-center">
+          <Checkbox
+            checked={allSelected}
+            onCheckedChange={(checked) => onToggleAll(checked === true)}
+            aria-label="Select all assets"
+            onClick={(event) => event.stopPropagation()}
+          />
+        </div>
+      ),
+      cell: ({ row }) => {
+        const assetId = row.original.id
+        const disabled = row.original.assetStatus !== "ASSIGNED"
+
+        return (
+          <div className="text-center">
+            <Checkbox
+              checked={selectedAssetIds.includes(assetId)}
+              disabled={disabled}
+              onCheckedChange={(checked) => onToggleAsset(assetId, checked === true)}
+              aria-label={`Select ${row.original.assetName}`}
+              onClick={(event) => event.stopPropagation()}
+            />
+          </div>
+        )
+      },
+    },
   {
     accessorKey: "assetName",
     header: () => <div className="text-center font-semibold">Name</div>,
@@ -85,4 +132,5 @@ export const columns: ColumnDef<Asset>[] = [
       )
     },
   },
-]
+  ]
+}
