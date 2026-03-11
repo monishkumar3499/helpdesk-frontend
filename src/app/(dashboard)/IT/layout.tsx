@@ -56,6 +56,7 @@ export default function ITLayout({ children }: { children: ReactNode }) {
       { href: "/IT/sla", label: "SLA" },
       { href: "/IT/reports", label: "Reports" },
       { href: "/IT/assets", label: "Assets" },
+      { href: "/IT/asset-log", label: "Asset Logs" },
     ]
     if (!isITAdmin(sessionInfo.role)) return common
     return [...common, { href: "/IT/it-support", label: "IT Support" }, { href: "/IT/purchase-assets", label: "Purchase Assets" }]

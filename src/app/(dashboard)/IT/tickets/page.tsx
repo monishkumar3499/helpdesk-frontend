@@ -138,8 +138,25 @@ export default function ITTicketsPage() {
         body: JSON.stringify(payload),
       })
       setAssets((prev) => prev.map((asset) => asset.id === id ? normalizeAsset(updated) : asset))
+      return true
     } catch {
       // Keep optimistic UI when backend update fails.
+      return false
+    }
+  }
+
+  async function createAssetAssignmentLog(assetId: string, assignedToId: string) {
+    if (!currentUser?.id) return
+    try {
+      await apiFetch(`/assets/${assetId}/assign`, {
+        method: "POST",
+        body: JSON.stringify({
+          assignedById: currentUser.id,
+          assignedToId,
+        }),
+      })
+    } catch {
+      // Log endpoint is best-effort and should not block assignment UX.
     }
   }
 
@@ -152,7 +169,10 @@ export default function ITTicketsPage() {
       assignedAsset?.assetType || selected.assetIssue?.assetClassification || selected.assetIssue?.assetCategory,
     )
 
-    await patchAsset(selectedAssetId, { assetStatus: "ASSIGNED", assignedToId: selected.createdById })
+    const didPatchAsset = await patchAsset(selectedAssetId, { assetStatus: "ASSIGNED", assignedToId: selected.createdById })
+    if (didPatchAsset) {
+      await createAssetAssignmentLog(selectedAssetId, selected.createdById)
+    }
     const nextAssetIssue = {
       ...(selected.assetIssue || {}),
       assetId: selectedAssetId,
