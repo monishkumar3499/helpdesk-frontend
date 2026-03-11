@@ -14,7 +14,7 @@ export default function ITDashboardPage() {
   if (state.loading) {
     return (
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {[...Array(9)].map((_, index) => <div key={index} className="h-24 rounded-xl bg-slate-100 animate-pulse" />)}
+        {[...Array(6)].map((_, index) => <div key={index} className="h-24 rounded-xl bg-slate-100 animate-pulse" />)}
       </div>
     )
   }
@@ -32,7 +32,7 @@ export default function ITDashboardPage() {
           <div>
             <h2 className="it-hero-title">IT Operations Dashboard</h2>
             <p className="it-hero-subtitle text-slate-200">
-              Real-time view of tickets, load-balancing flow, SLA, and asset health
+              Real-time view of tickets
               {state.usingMock && <span className="ml-2 text-amber-300">(Backend unavailable)</span>}
             </p>
           </div>

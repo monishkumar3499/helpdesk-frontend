@@ -199,11 +199,11 @@ export default function ITTicketsPage() {
 
   const selectedAssignableAssets = useMemo(() => {
     if (!selected || resolveTicketIssueType(selected) !== "ASSET_REQUEST") return []
-    const wantedCategory = selected.assetIssue?.assetCategory?.trim().toUpperCase()
-    if (wantedCategory !== "HARDWARE" && wantedCategory !== "SOFTWARE" && wantedCategory !== "NETWORK") return []
+    const wantedClassification = selected.assetIssue?.assetCategory?.trim().toUpperCase()
+    if (wantedClassification !== "HARDWARE" && wantedClassification !== "SOFTWARE" && wantedClassification !== "NETWORK") return []
 
     return assets.filter((asset) => (
-      asset.assetStatus === "AVAILABLE" && asset.assetType === wantedCategory
+      asset.assetStatus === "AVAILABLE" && asset.assetType === wantedClassification
     ))
   }, [assets, selected])
 
