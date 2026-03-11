@@ -19,7 +19,7 @@ import {
 type Priority = "LOW" | "HIGH" | "CRITICAL"
 type Department = "HR" | "IT"
 type TicketIssueType = "GENERAL" | "ASSET_REQUEST" | "ASSET_PROBLEM"
-type AssetClassification = "NETWORK" | "SOFTWARE" | "HARDWARE"
+type AssetCategory = "NETWORK" | "SOFTWARE" | "HARDWARE"
 
 export default function RaiseTicketPage() {
   const [title, setTitle] = useState("")
@@ -28,8 +28,8 @@ export default function RaiseTicketPage() {
   const [department, setDepartment] = useState<Department>("HR")
   const [issueType, setIssueType] = useState<TicketIssueType>("GENERAL")
   const [assetSerialNumber, setAssetSerialNumber] = useState("")
-  const [assetCategory, setAssetCategory] = useState("")
-  const [assetClassification, setAssetClassification] = useState<AssetClassification>("HARDWARE")
+  const [assetCategory, setAssetCategory] = useState<AssetCategory>("HARDWARE")
+  const [assetClassification, setAssetClassification] = useState("")
   const [requestedAssetName, setRequestedAssetName] = useState("")
   const [image, setImage] = useState<File | null>(null)
   const [preview, setPreview] = useState<string | null>(null)
@@ -59,8 +59,8 @@ export default function RaiseTicketPage() {
     if (value !== "IT") {
       setIssueType("GENERAL")
       setAssetSerialNumber("")
-      setAssetCategory("")
-      setAssetClassification("HARDWARE")
+      setAssetCategory("HARDWARE")
+      setAssetClassification("")
       setRequestedAssetName("")
     }
   }
@@ -101,7 +101,7 @@ export default function RaiseTicketPage() {
           payload.assetIssue = {
             assetSerialNumber: issueType === "ASSET_PROBLEM" ? assetSerialNumber.trim() || null : null,
             assetCategory: assetCategory.trim() || null,
-            assetClassification,
+            assetClassification: assetClassification.trim() || null,
             requestedAssetName: requestedAssetName.trim() || null,
           }
         }
@@ -119,8 +119,8 @@ export default function RaiseTicketPage() {
       setDepartment("HR")
       setIssueType("GENERAL")
       setAssetSerialNumber("")
-      setAssetCategory("")
-      setAssetClassification("HARDWARE")
+      setAssetCategory("HARDWARE")
+      setAssetClassification("")
       setRequestedAssetName("")
       setImage(null)
       setPreview(null)
@@ -214,22 +214,22 @@ export default function RaiseTicketPage() {
 
                     {issueType !== "GENERAL" && (
                       <div className="space-y-2">
-                        <Label className="text-sm font-semibold text-slate-700">Asset Category</Label>
+                        <Label className="text-sm font-semibold text-slate-700">Asset Classification</Label>
                         <Input
                           className="bg-white border-slate-200"
-                          placeholder="Example: Laptop / Networking / Software"
-                          value={assetCategory}
-                          onChange={(event) => setAssetCategory(event.target.value)}
+                          placeholder="Example: Laptop / Printer / Graphics Card"
+                          value={assetClassification}
+                          onChange={(event) => setAssetClassification(event.target.value)}
                         />
                       </div>
                     )}
 
                     {issueType !== "GENERAL" && (
                       <div className="space-y-2">
-                        <Label className="text-sm font-semibold text-slate-700">Asset Classification</Label>
+                        <Label className="text-sm font-semibold text-slate-700">Asset Category</Label>
                         <Select
-                          value={assetClassification}
-                          onValueChange={(value) => setAssetClassification(value as AssetClassification)}
+                          value={assetCategory}
+                          onValueChange={(value) => setAssetCategory(value as AssetCategory)}
                         >
                           <SelectTrigger className="h-11 bg-white border-slate-200">
                             <SelectValue />

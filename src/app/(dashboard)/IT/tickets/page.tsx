@@ -28,7 +28,7 @@ const PRIORITY_COLOR: Record<string, string> = {
 const IT_CATEGORIES = ["ALL", "HARDWARE", "SOFTWARE", "NETWORK"] as const
 const ISSUE_TYPE_FILTERS = ["ALL", "GENERAL", "ASSET_REQUEST", "ASSET_PROBLEM"] as const
 
-function toAssetClassification(value?: string | null): "HARDWARE" | "SOFTWARE" | "NETWORK" {
+function toAssetCategory(value?: string | null): "HARDWARE" | "SOFTWARE" | "NETWORK" {
   const normalized = value?.trim().toUpperCase()
   if (normalized === "SOFTWARE") return "SOFTWARE"
   if (normalized === "NETWORK") return "NETWORK"
@@ -165,9 +165,10 @@ export default function ITTicketsPage() {
     if (!selected || selectedIssueType !== "ASSET_REQUEST" || !selectedAssetId || !selected.createdById) return
 
     const assignedAsset = assets.find((asset) => asset.id === selectedAssetId)
-    const assignedCategory = toAssetClassification(
-      assignedAsset?.assetType || selected.assetIssue?.assetClassification || selected.assetIssue?.assetCategory,
+    const assignedCategory = toAssetCategory(
+      assignedAsset?.assetType || selected.assetIssue?.assetCategory,
     )
+    const assignedClassification = selected.assetIssue?.assetClassification
 
     const didPatchAsset = await patchAsset(selectedAssetId, { assetStatus: "ASSIGNED", assignedToId: selected.createdById })
     if (didPatchAsset) {
@@ -178,7 +179,7 @@ export default function ITTicketsPage() {
       assetId: selectedAssetId,
       assetSerial: assignedAsset?.serialNumber || selected.assetIssue?.assetSerial || null,
       assetCategory: assignedCategory,
-      assetClassification: assignedCategory,
+      assetClassification: assignedClassification,
     }
     await patchTicket(selected.id, { assetIssue: nextAssetIssue })
     setTickets((prev) => prev.map((ticket) => (
@@ -219,11 +220,11 @@ export default function ITTicketsPage() {
 
   const selectedAssignableAssets = useMemo(() => {
     if (!selected || resolveTicketIssueType(selected) !== "ASSET_REQUEST") return []
-    const wantedClassification = selected.assetIssue?.assetCategory?.trim().toUpperCase()
-    if (wantedClassification !== "HARDWARE" && wantedClassification !== "SOFTWARE" && wantedClassification !== "NETWORK") return []
+    const wantedCategory = selected.assetIssue?.assetCategory?.trim().toUpperCase()
+    if (wantedCategory !== "HARDWARE" && wantedCategory !== "SOFTWARE" && wantedCategory !== "NETWORK") return []
 
     return assets.filter((asset) => (
-      asset.assetStatus === "AVAILABLE" && asset.assetType === wantedClassification
+      asset.assetStatus === "AVAILABLE" && asset.assetType === wantedCategory
     ))
   }, [assets, selected])
 
